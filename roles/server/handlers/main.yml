@@ -1,0 +1,19 @@
+---
+# =============================================================================
+# SERVER ROLE HANDLERS
+# =============================================================================
+
+- name: Restart network services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - systemd-networkd
+    - NetworkManager
+  ignore_errors: true
+
+- name: Restart unattended-upgrades
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    state: restarted
+  when: server_automatic_updates_enabled

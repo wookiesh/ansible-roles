@@ -1,0 +1,49 @@
+---
+# Tailscale Service Handlers
+
+- name: Restart Tailscale
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: restarted
+  when: tailscale_restart_on_config_change
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Reload UFW
+  community.general.ufw:
+    state: reloaded
+  when: ansible_facts.packages['ufw'] is defined
+
+- name: Save nftables
+  ansible.builtin.command: nft list ruleset > /etc/nftables.conf
+  when: ansible_facts.packages['nftables'] is defined
+  changed_when: false
+
+- name: Save iptables
+  ansible.builtin.command: iptables-save > /etc/iptables/rules.v4
+  when: 
+    - ansible_facts.packages['ufw'] is not defined
+    - ansible_facts.packages['nftables'] is not defined
+  changed_when: false
+
+- name: Start Tailscale
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: started
+
+- name: Stop Tailscale
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: stopped
+
+- name: Enable Tailscale
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+
+- name: Disable Tailscale
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: false

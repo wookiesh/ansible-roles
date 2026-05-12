@@ -1,0 +1,12 @@
+---
+# Handlers for Traefik role
+- name: Restart Traefik
+  ansible.builtin.include_tasks: restart.yaml
+  listen: Restart Traefik
+
+- name: Reload Traefik configuration
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ traefik_compose_file }} exec proxy traefik reload"
+  become: true
+  failed_when: false
+  when: traefik_deployment_mode == "compose"

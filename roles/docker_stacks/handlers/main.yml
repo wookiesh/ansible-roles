@@ -1,0 +1,38 @@
+---
+# Docker Stacks Handlers
+# Manages Docker daemon restarts and cleanup operations
+
+- name: Restart Docker daemon
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  listen: restart_docker
+  when: docker_stacks_enabled | default(false)
+
+- name: Reload Docker daemon
+  ansible.builtin.systemd:
+    name: docker
+    state: reloaded
+  listen: reload_docker
+  when: docker_stacks_enabled | default(false)
+
+- name: Prune Docker images
+  ansible.builtin.command: docker image prune -f
+  register: docker_prune_images
+  changed_when: "'Total reclaimed space' in docker_prune_images.stdout"
+  listen: prune_docker_images
+  when: docker_stacks_enabled | default(false)
+
+- name: Prune Docker volumes
+  ansible.builtin.command: docker volume prune -f
+  register: docker_prune_volumes
+  changed_when: "'Total reclaimed space' in docker_prune_volumes.stdout"
+  listen: prune_docker_volumes
+  when: docker_stacks_enabled | default(false)
+
+- name: Clean up orphan containers
+  ansible.builtin.command: docker container prune -f
+  register: docker_prune_containers
+  changed_when: "'Total reclaimed space' in docker_prune_containers.stdout"
+  listen: cleanup_orphan_containers
+  when: docker_stacks_enabled | default(false)

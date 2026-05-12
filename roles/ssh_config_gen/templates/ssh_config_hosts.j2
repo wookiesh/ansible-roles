@@ -1,0 +1,41 @@
+{% for host in groups['all'] | sort %}
+{% if host != 'localhost' %}
+{% set vars = hostvars[host] %}
+{% if vars.ansible_host is defined and vars.ansible_host %}
+Host {{ host }}
+HostName {{ vars.ansible_host }}
+{% if vars.ansible_port is defined %}
+Port {{ vars.ansible_port }}
+{% endif %}
+{% if vars.ansible_user is defined %}
+User {{ vars.ansible_user }}
+{% endif %}
+{% if vars.ansible_ssh_private_key_file is defined %}
+IdentityFile {{ vars.ansible_ssh_private_key_file }}
+{% endif %}
+IdentitiesOnly yes
+{% if vars.ssh_config_gen_forward_agent | default(false) %}
+ForwardAgent yes
+{% endif %}
+{% if vars.ssh_config_gen_proxy_jump | default('') %}
+ProxyJump {{ vars.ssh_config_gen_proxy_jump }}
+{% endif %}
+
+{% endif %}
+{% endif %}
+{% endfor %}
+{% for extra in ssh_config_gen_extra_hosts %}
+Host {{ extra.name }}
+HostName {{ extra.hostname }}
+IdentitiesOnly yes
+{% if extra.strict_host_key_checking | default('') %}
+StrictHostKeyChecking {{ extra.strict_host_key_checking }}
+{% endif %}
+{% if extra.forward_agent | default(false) %}
+ForwardAgent yes
+{% endif %}
+{% if extra.proxy_jump | default('') %}
+ProxyJump {{ extra.proxy_jump }}
+{% endif %}
+
+{% endfor %}

@@ -1,0 +1,85 @@
+---
+- name: Check Docker Compose installation method
+  ansible.builtin.fail:
+    msg: "Invalid docker_host_compose_install_method. Must be 'plugin' or 'standalone'"
+  when: docker_host_compose_install_method not in ['plugin', 'standalone']
+
+- name: Check if Docker Compose plugin is installed
+  ansible.builtin.command: docker compose version
+  register: docker_host_compose_plugin_check
+  ignore_errors: true
+  changed_when: false
+  when: docker_host_compose_install_method == "plugin"
+
+- name: Install Docker Compose plugin (Ubuntu/Debian)
+  ansible.builtin.apt:
+    name: docker-compose-plugin
+    state: present
+    update_cache: true
+  become: true
+  when:
+    - docker_host_compose_install
+    - docker_host_compose_install_method == "plugin"
+    - docker_host_compose_plugin_check.rc != 0
+    - ansible_os_family == "Debian"
+
+- name: Install Docker Compose plugin (RHEL/CentOS)
+  ansible.builtin.dnf:
+    name: docker-compose-plugin
+    state: present
+  become: true
+  when:
+    - docker_host_compose_install
+    - docker_host_compose_install_method == "plugin"
+    - docker_host_compose_plugin_check.rc != 0
+    - ansible_os_family == "RedHat"
+
+- name: Install Docker Compose standalone (latest)
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/latest/download/docker-compose-{{ ansible_system }}-{{ ansible_architecture }}"
+    dest: /usr/local/bin/docker-compose
+    mode: "0755"
+  become: true
+  when:
+    - docker_host_compose_install
+    - docker_host_compose_install_method == "standalone"
+    - docker_host_compose_version == "latest"
+
+- name: Get Docker Compose standalone version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/docker/compose/releases/tags/v{{ docker_host_compose_version }}"
+    method: GET
+  register: docker_host_compose_release_info
+  when:
+    - docker_host_compose_install
+    - docker_host_compose_install_method == "standalone"
+    - docker_host_compose_version != "latest"
+
+- name: Install Docker Compose standalone (specific version)
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/v{{ docker_host_compose_version }}/docker-compose-{{ ansible_system }}-{{ ansible_architecture }}"
+    dest: /usr/local/bin/docker-compose
+    mode: "0755"
+  become: true
+  when:
+    - docker_host_compose_install
+    - docker_host_compose_install_method == "standalone"
+    - docker_host_compose_version != "latest"
+
+- name: Verify Docker Compose installation
+  ansible.builtin.shell: |
+    {% if docker_host_compose_install_method == "plugin" %}
+    docker compose version
+    {% else %}
+    docker-compose version
+    {% endif %}
+  register: docker_host_compose_verify
+  changed_when: false
+
+- name: Assert Docker Compose installation success
+  ansible.builtin.assert:
+    that:
+      - docker_host_compose_verify.rc == 0
+    fail_msg: "Docker Compose installation failed"
+    success_msg: "Docker Compose installed successfully: {{ docker_host_compose_verify.stdout }}"
+  when: not ansible_check_mode

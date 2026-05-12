@@ -1,0 +1,66 @@
+---
+- name: Manage SSH user access and keys
+  when: not ssh_pikvm_mode
+  block:
+    - name: Create SSH directory for users
+      ansible.builtin.file:
+        path: "/home/{{ item }}/.ssh"
+        state: directory
+        mode: "0700"
+        owner: "{{ item }}"
+        group: "{{ item }}"
+      loop: "{{ ssh_manage_users }}"
+      when: ssh_manage_users is defined
+
+    - name: Deploy SSH authorized keys
+      ansible.builtin.authorized_key:
+        user: "{{ item.name }}"
+        state: present
+        key: "{{ item.key }}"
+        exclusive: "{{ item.exclusive | default(false) }}"
+      loop: "{{ ssh_authorized_keys }}"
+      when: ssh_authorized_keys is defined
+
+    - name: Add users to ssh-users group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: ssh-users
+        append: true
+      loop: "{{ ssh_ssh_users }}"
+      when: ssh_ssh_users is defined
+
+    - name: Remove SSH access for denied users
+      ansible.builtin.authorized_key:
+        user: "{{ item }}"
+        state: absent
+        key: ""
+      loop: "{{ ssh_deny_ssh_users }}"
+      when: ssh_deny_ssh_users is defined
+      register: ssh_deny_result
+      failed_when:
+        - ssh_deny_result is failed
+        - "'user not found' not in ssh_deny_result.msg | default('')"
+        - "'does not exist' not in ssh_deny_result.msg | default('')"
+
+- name: Generate SSH host keys (if missing)
+  ansible.builtin.command:
+    cmd: ssh-keygen -A
+  args:
+    creates: /etc/ssh/ssh_host_ed25519_key
+  notify: Restart SSH
+
+- name: Set proper permissions on SSH host keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0600"
+    owner: root
+    group: root
+  loop:
+    - /etc/ssh/ssh_host_rsa_key
+    - /etc/ssh/ssh_host_ecdsa_key
+    - /etc/ssh/ssh_host_ed25519_key
+  register: ssh_keys_permissions
+  failed_when:
+    - ssh_keys_permissions is failed
+    - "'No such file or directory' not in ssh_keys_permissions.msg | default('')"
+    - "'does not exist' not in ssh_keys_permissions.msg | default('')"

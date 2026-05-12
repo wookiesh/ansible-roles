@@ -1,0 +1,72 @@
+---
+nut_server_ups_list:
+  - desc: "Green Cell PowerProof 2000VA (1400W) UPS05"
+    driver: nutdrv_qx
+    name: greencell
+    offdelay: 120
+    ondelay: 240
+    port: auto
+    product: MEC0003
+    productid: "0000"
+    vendor: MEC
+    vendorid: "0001"
+
+nut_server_admin_users:
+  - name: "admin"
+    password: "admin_pass"
+    actions: ["SET", "fsd"]
+    instcmds: "ALL"
+
+nut_server_monitor_users:
+  - name: server_mon
+    password: server_pass
+    role: master
+  - name: client_mon
+    password: client_pass
+    role: slave
+  # - name: "monuser"
+  #   password: "monpass"
+  #   role: "slave"
+
+nut_server_config_files:
+  - src: "nut.conf.j2"
+    dest: "/etc/nut/nut.conf"
+    mode: "0644"
+  - src: "ups.conf.j2"
+    dest: "/etc/nut/ups.conf"
+    mode: "0640"
+  - src: "upsd.conf.j2"
+    dest: "/etc/nut/upsd.conf"
+    mode: "0640"
+  - src: "upsd.users.j2"
+    dest: "/etc/nut/upsd.users"
+    mode: "0640"
+  - src: "upsmon.conf.j2"
+    dest: "/etc/nut/upsmon.conf"
+    mode: "0600"
+  - src: "upssched.conf.j2"
+    dest: "/etc/nut/upssched.conf"
+    mode: "0640"
+  - src: "ups-scheduled-tasks.j2"
+    dest: "/usr/local/bin/ups-scheduled-tasks"
+    mode: "0750"
+
+nut_server_notify_command: "/sbin/upssched"
+nut_server_shutdown_command: "/bin/systemctl halt"
+nut_server_final_delay: 5
+nut_server_powerdown_flag: "/etc/killpower"
+
+# device not running nut-monitor, that have to be warned (ssh)
+nut_server_satellite_device: []
+  # - host: ap.example.net
+  #   user: nut
+  #   ssh_key: /etc/nut/ssh/id_rsa
+  #   remote_cmd_onbatt: 'log warning message="${message}"'
+  #   remote_cmd_online: 'log info message="${message}"'
+  #   remote_cmd_lowbatt: 'log warning message="${message}"'
+  #   remote_cmd_fsd: 'log error message="${message}" ; beep 0.5 ; delay 4000ms ; beep 0.5 ; system shutdown!'
+  #   remote_cmd_commok: 'log info message="${message}"'
+  #   remote_cmd_commbad: 'log warning message="${message}"'
+  #   remote_cmd_shutdown: 'log warning message="${message}"'
+  #   remote_cmd_replbatt: 'log warning message="${message}"'
+  #   remote_cmd_nocomm: 'log warning message="${message}"'

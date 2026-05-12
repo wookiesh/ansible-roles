@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: server
+  description: Configure automatic updates for servers
+  author: your_name
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+dependencies: []

@@ -1,0 +1,93 @@
+---
+# Keepalived service management tasks
+- name: Ensure keepalived service is enabled and started
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    enabled: "{{ keepalived_service_enabled }}"
+    state: "{{ keepalived_service_state }}"
+  become: true
+  register: keepalived_service_result
+
+- name: Verify keepalived service status
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+  register: keepalived_service_check
+  failed_when:
+    - keepalived_service_state == "started"
+    - keepalived_service_check.status.ActiveState != "active"
+  when: keepalived_service_state == "started"
+
+- name: Display keepalived service status
+  ansible.builtin.debug:
+    msg: "✅ Keepalived service is {{ keepalived_service_check.status.ActiveState }}"
+  when: keepalived_service_state == "started"
+
+- name: Get keepalived process information
+  ansible.builtin.command:
+    cmd: "pgrep -f keepalived"
+  register: keepalived_process_check
+  changed_when: false
+  failed_when: false
+  when: keepalived_service_state == "started"
+
+- name: Display keepalived process information
+  ansible.builtin.debug:
+    msg: "Keepalived process PID: {{ keepalived_process_check.stdout_lines[0] | default('Not running') }}"
+  when: keepalived_service_state == "started"
+
+- name: Check VRRP status
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && keepalived --dump-data | grep -A 5 'VRRP Instance' || echo 'VRRP status not available'"
+  register: keepalived_vrrp_status
+  changed_when: false
+  failed_when: false
+  when: keepalived_service_state == "started"
+
+- name: Display VRRP status
+  ansible.builtin.debug:
+    msg: |
+      📊 VRRP Status:
+      {{ keepalived_vrrp_status.stdout }}
+  when:
+    - keepalived_service_state == "started"
+    - keepalived_vrrp_status.stdout_lines | length > 0
+
+- name: Test keepalived configuration in dry run mode
+  ansible.builtin.command:
+    cmd: "keepalived --test --config-file {{ keepalived_config_file }}"
+  register: keepalived_dry_run_test
+  changed_when: false
+  when: keepalived_test_mode or keepalived_dry_run
+
+- name: Display dry run test results
+  ansible.builtin.debug:
+    msg: |
+      🧪 Dry Run Test Results:
+      {{ keepalived_dry_run_test.stdout }}
+  when: keepalived_test_mode or keepalived_dry_run
+
+- name: Create keepalived status script
+  ansible.builtin.template:
+    src: keepalived_status.sh.j2
+    dest: "/usr/local/bin/keepalived-status"
+    mode: "0755"
+    owner: root
+    group: root
+  when: keepalived_metrics_enabled
+
+- name: Test keepalived status script
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/keepalived-status"
+  register: keepalived_status_test
+  changed_when: false
+  failed_when: false
+  when: keepalived_metrics_enabled
+
+- name: Display status script output
+  ansible.builtin.debug:
+    msg: |
+      📈 Status Script Output:
+      {{ keepalived_status_test.stdout }}
+  when:
+    - keepalived_metrics_enabled
+    - keepalived_status_test.rc == 0

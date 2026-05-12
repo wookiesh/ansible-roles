@@ -1,0 +1,2 @@
+/^From: (.*)@(.*)\.{{ smtp_internal_domain | replace('.', '\\.') }}/ REPLACE From: $1.$2@{{ smtp_internal_domain }}
+/^To:(.*)@(.*)\.{{ smtp_internal_domain | replace('.', '\\.') }}/ REPLACE To: $1.$2@{{ smtp_internal_domain }}

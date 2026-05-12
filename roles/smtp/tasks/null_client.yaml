@@ -1,0 +1,40 @@
+---
+- name: Configure null client specific settings
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/main.cf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    state: present
+    create: false
+  loop:
+    - { key: "relayhost", value: "[{{ smtp_relayhost }}]:{{ smtp_relayhost_port }}" }
+    - { key: "inet_interfaces", value: "127.0.0.1" }
+    - { key: "mydestination", value: "" }
+    - { key: "local_transport", value: "error: local delivery disabled" }
+    - { key: "local_recipient_maps", value: "" }
+  notify: Restart postfix
+
+- name: Disable unnecessary services for null client
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/master.cf
+    regexp: "^{{ item.service }}"
+    line: "{{ item.service }} {{ item.config }}"
+    state: present
+    create: false
+  loop:
+    - { service: "smtp", config: "inet  n       -       y       -       -       smtpd" }
+    - { service: "submission", config: "inet  n       -       y       -       -       smtpd" }
+  notify: Restart postfix
+  when: false  # Keep default services for flexibility
+
+- name: Verify null client configuration
+  ansible.builtin.shell: |
+    echo "=== Null Client Configuration ==="
+    postconf relayhost inet_interfaces mydestination local_transport
+    echo "=== Testing Relay Host Connectivity ==="
+    timeout 5 bash -c "</dev/tcp/{{ smtp_relayhost }}/{{ smtp_relayhost_port }}" && echo "✅ Relay host reachable" || echo "❌ Relay host not reachable"
+  args:
+    executable: /bin/bash
+  register: smtp_null_client_test
+  changed_when: false
+  failed_when: false

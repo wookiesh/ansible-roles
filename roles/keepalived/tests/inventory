@@ -1,0 +1,12 @@
+# Test inventory for keepalived role
+# This is a minimal inventory for testing the keepalived role
+
+[test_hosts]
+test01 ansible_host=127.0.0.1 keepalived_priority=150
+test02 ansible_host=127.0.0.1 keepalived_priority=100
+
+[test_hosts:vars]
+ansible_connection=local
+ansible_python_interpreter={{ ansible_playbook_python }}
+keepalived_enabled=true
+keepalived_interface=dummy0

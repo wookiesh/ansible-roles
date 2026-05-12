@@ -1,0 +1,35 @@
+---
+- name: Test boolean configuration values
+  hosts: localhost
+  become: true
+  vars:
+    smtp_null_client_enabled: true
+    smtp_relayhost: "smtp.test.local"
+    smtp_relayhost_port: 25
+    smtp_domain: "test.local"
+
+  tasks:
+    - name: Include SMTP role
+      ansible.builtin.include_role:
+        name: smtp
+
+    - name: Check generated boolean values in main.cf
+      ansible.builtin.shell: |
+        grep -E "(smtp_use_tls|smtp_sasl_auth_enable|disable_vrfy_command|smtpd_helo_required)" /etc/postfix/main.cf
+      register: boolean_check
+      changed_when: false
+
+    - name: Display boolean configuration
+      ansible.builtin.debug:
+        msg: |
+          Generated boolean values:
+          {{ boolean_check.stdout }}
+
+    - name: Verify boolean values are yes/no (not true/false)
+      ansible.builtin.assert:
+        that:
+          - "'true' not in boolean_check.stdout"
+          - "'false' not in boolean_check.stdout"
+          - "'yes' in boolean_check.stdout or 'no' in boolean_check.stdout"
+        fail_msg: "Boolean values should be 'yes' or 'no', not 'true' or 'false'"
+        success_msg: "✅ Boolean values correctly formatted as 'yes'/'no'"

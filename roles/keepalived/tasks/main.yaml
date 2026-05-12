@@ -1,0 +1,20 @@
+---
+# Keepalived role main tasks
+- name: Import keepalived validation tasks
+  ansible.builtin.import_tasks: validate.yaml
+
+- name: Import keepalived installation tasks
+  ansible.builtin.import_tasks: install.yaml
+  when: keepalived_enabled
+
+- name: Import keepalived configuration tasks
+  ansible.builtin.import_tasks: configure.yaml
+  when: keepalived_enabled
+
+- name: Import keepalived service tasks
+  ansible.builtin.import_tasks: service.yaml
+  when: keepalived_enabled
+
+- name: Import keepalived post-configuration tasks
+  ansible.builtin.import_tasks: post_configure.yaml
+  when: keepalived_enabled

@@ -1,0 +1,78 @@
+---
+# Simplified Docker Stack Deployment
+# Deploys existing Docker Compose/Swarm YAML files
+
+- name: Create stack directory
+  ansible.builtin.file:
+    path: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}"
+    state: directory
+    mode: "2775"  # sticky bit + group write
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    recurse: false
+
+- name: Ensure stack directory has correct permissions
+  ansible.builtin.file:
+    path: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}"
+    state: directory
+    mode: "2775"  # sticky bit + group write
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    recurse: false
+
+- name: Copy stack compose file
+  ansible.builtin.template:
+    src: "{{ stack_item.stack_template }}"
+    dest: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}/stack.yaml"
+    mode: "0644"
+    owner: root
+    group: root
+  register: stack_copy_result
+
+- name: Extract bind mount directories from stack file
+  ansible.builtin.shell: |
+    grep -E "^\s*-\s+\.\/" "{{ docker_stacks_base_dir }}/{{ stack_item.name }}/stack.yaml" | sed 's/.*\(\.\/[^:]*\).*/\1/' | sort -u
+  register: bind_mount_dirs
+  changed_when: false
+  failed_when: false
+
+- name: Create bind mount directories
+  ansible.builtin.file:
+    path: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}/{{ item }}"
+    state: directory
+    mode: "2775"  # sticky bit + group write
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    recurse: false
+  loop: "{{ bind_mount_dirs.stdout_lines | default([]) }}"
+  when: 
+    - bind_mount_dirs.stdout_lines | length > 0
+    - item | length > 0
+
+- name: Ensure bind mount directories have correct permissions
+  ansible.builtin.file:
+    path: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}/{{ item }}"
+    state: directory
+    mode: "2775"  # sticky bit + group write
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    recurse: false
+  loop: "{{ bind_mount_dirs.stdout_lines | default([]) }}"
+  when: 
+    - bind_mount_dirs.stdout_lines | length > 0
+    - item | length > 0
+
+- name: Deploy Docker Swarm stack
+  ansible.builtin.command: docker stack deploy -c stack.yaml {{ stack_item.name }}
+  args:
+    chdir: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}"
+  register: stack_deploy_result
+
+- name: Display stack deployment result
+  ansible.builtin.debug:
+    msg: |
+      📦 Stack {{ stack_item.name }} deployment:
+      - Status: {{ 'DEPLOYED' if stack_deploy_result.changed else 'NO CHANGE' }}
+      - Source: {{ stack_item.stack_template }}
+      - Target: {{ docker_stacks_base_dir }}/{{ stack_item.name }}/stack.yaml
+  when: stack_copy_result.changed or stack_deploy_result is defined

@@ -1,0 +1,73 @@
+---
+- name: Verify Docker installation
+  ansible.builtin.command: docker --version
+  register: docker_host_verify
+  changed_when: false
+
+- name: Run Docker hello-world container for verification
+  ansible.builtin.command: docker run --rm hello-world
+  register: docker_host_hello_world
+  changed_when: false
+  failed_when: "'Hello from Docker!' not in docker_host_hello_world.stdout"
+
+- name: Display Docker verification success
+  ansible.builtin.debug:
+    msg: |
+      ✅ Docker installation verified successfully!
+      {{ docker_host_hello_world.stdout }}
+
+- name: Test Docker daemon configuration
+  ansible.builtin.command: docker info
+  register: docker_host_info
+  changed_when: false
+
+- name: Display Docker system information
+  ansible.builtin.debug:
+    var: docker_host_info.stdout_lines
+
+- name: Prune unused Docker images (if enabled)
+  ansible.builtin.command: docker image prune -f
+  register: docker_host_prune_images
+  changed_when: "'Total reclaimed space' in docker_host_prune_images.stdout"
+  when: docker_host_prune_images
+
+- name: Prune unused Docker volumes (if enabled)
+  ansible.builtin.command: docker volume prune -f
+  register: docker_host_prune_volumes
+  changed_when: "'Total reclaimed space' in docker_host_prune_volumes.stdout"
+  when: docker_host_prune_volumes
+
+- name: Prune unused Docker networks (if enabled)
+  ansible.builtin.command: docker network prune -f
+  register: docker_host_prune_networks
+  changed_when: "'Total reclaimed space' in docker_host_prune_networks.stdout"
+  when: docker_host_prune_networks
+
+- name: Prune Docker build cache (if enabled)
+  ansible.builtin.command: docker builder prune -f
+  register: docker_host_prune_build_cache
+  changed_when: "'Total reclaimed space' in docker_host_prune_build_cache.stdout"
+  when: docker_host_prune_build_cache
+
+- name: Display Docker system usage
+  ansible.builtin.command: docker system df
+  register: docker_host_system_df
+  changed_when: false
+
+- name: Show Docker installation summary
+  ansible.builtin.debug:
+    msg: |
+      🐳 Docker installation completed successfully!
+
+      Installation method: {{ docker_host_install_method }}
+      Docker version: {{ docker_check.stdout if docker_check is defined else 'Unknown' }}
+      Docker Compose: {{ 'Installed' if docker_host_compose_install else 'Not installed' }}
+      User in docker group: {{ docker_host_user if docker_host_add_user_to_group else 'Not configured' }}
+
+      ⚠️  IMPORTANT: You must log out and log back in for Docker group changes to take effect!
+      Alternatively, run: newgrp docker
+
+      Next steps:
+      - Log out and back in to apply group changes
+      - Run 'docker run hello-world' to verify
+      - Use 'docker compose' for multi-container applications

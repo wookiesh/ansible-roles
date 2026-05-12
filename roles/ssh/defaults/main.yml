@@ -1,0 +1,58 @@
+---
+ssh_install_server: false
+ssh_configure_client: false # Set to true to configure SSH client settings, still to debug...
+ssh_generate_config: false
+ssh_pikvm_mode: false
+
+# SSH Server Hardening Configuration
+ssh_port: 22
+ssh_protocol: 2
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_permit_empty_passwords: "no"
+ssh_challenge_response_authentication: "no"
+ssh_use_pam: "yes"
+ssh_x11_forwarding: "no"
+ssh_allow_tcp_forwarding: "no"
+ssh_allow_agent_forwarding: "no"
+ssh_agent_forwarding_groups: []
+ssh_permit_tunnel: "no"
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+ssh_max_auth_tries: 3
+ssh_max_sessions: 10
+ssh_login_grace_time: 60
+ssh_banner: "/etc/ssh/banner.txt"
+ssh_authorized_keys_file: ".ssh/authorized_keys"
+ssh_strict_modes: "yes"
+ssh_ignore_rhosts: "yes"
+ssh_host_key_algorithms: "ssh-ed25519,ssh-rsa,rsa-sha2-512,rsa-sha2-256"
+ssh_kex_algorithms: "curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256"
+ssh_ciphers: "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
+ssh_macs: "hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256,hmac-sha2-512"
+
+# User and Group Restrictions
+ssh_allow_groups: ["ssh-users", "sudo", "wheel"]
+ssh_deny_users: ["root", "guest", "nobody"]
+ssh_allow_users: []
+# Fail2ban Integration
+ssh_fail2ban_enabled: true
+ssh_fail2ban_maxretry: 3
+ssh_fail2ban_findtime: 300
+ssh_fail2ban_bantime: 3600
+
+# SSH Banner
+ssh_enable_banner: false
+ssh_banner_country: "Belgium"
+ssh_banner_text: |
+  *****************************************************************
+  *                                                               *
+  *               AUTHORIZED ACCESS ONLY                          *
+  *                                                               *
+  * This system is for authorized users only.                     *
+  *                                                               *
+  * Unauthorized access is a violation of {{ ssh_banner_country }} and European *
+  * laws (Penal Code, Computer Crime Act). All activities are     *
+  * monitored and logged.                                         *
+  *                                                               *
+  *****************************************************************

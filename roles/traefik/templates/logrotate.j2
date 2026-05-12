@@ -1,0 +1,10 @@
+{{ traefik_access_log_path }}/access.log {
+    {{ traefik_log_rotate_frequency }}
+    rotate {{ traefik_log_rotate_keep }}
+    maxsize {{ traefik_log_rotate_maxsize }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

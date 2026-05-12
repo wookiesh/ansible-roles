@@ -1,0 +1,26 @@
+---
+- name: Fail if ssh_config_gen_output is not set
+  ansible.builtin.fail:
+    msg: "ssh_config_gen_output must be set (e.g. ~/.ssh/config.d/myproject)"
+  when: not ssh_config_gen_output
+
+- name: Ensure ssh config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ ssh_config_gen_main | dirname }}/config.d"
+    - "{{ ssh_config_gen_output | dirname }}"
+
+- name: Generate main SSH config
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: "{{ ssh_config_gen_main }}"
+    mode: "0600"
+
+- name: Generate per-project SSH host entries
+  ansible.builtin.template:
+    src: ssh_config_hosts.j2
+    dest: "{{ ssh_config_gen_output }}"
+    mode: "0600"

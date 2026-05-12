@@ -1,0 +1,17 @@
+#
+# upsd.users - User definitions for NUT upsd
+#
+
+# /etc/nut/upsd.users
+{% for user in nut_server_admin_users %}
+[{{ user.name }}]
+password = {{ user.password }}
+actions = {{ user.actions | join(',') }}
+instcmds = {{ user.instcmds }}
+{% endfor %}
+
+{% for user in nut_server_monitor_users %}
+[{{ user.name }}]
+password = {{ user.password }}
+upsmon {{ user.role }}
+{% endfor %}

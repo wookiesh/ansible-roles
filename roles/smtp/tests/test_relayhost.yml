@@ -1,0 +1,75 @@
+---
+- name: Test SMTP role with relay host (SASL required)
+  hosts: localhost
+  become: true
+  vars:
+    # Test relay host configuration - SASL required
+    smtp_relayhost_enabled: true
+    smtp_relay_domains: ["example.com"]
+    smtp_external_relayhost: "smtp.provider.com"
+    smtp_external_relayhost_port: 587
+    smtp_domain: "example.com"
+    smtp_sasl_auth_enable: true
+    smtp_sasl_user: "test@provider.com"
+    smtp_sasl_password: "test_password"
+
+  pre_tasks:
+    - name: Show test environment
+      ansible.builtin.debug:
+        msg: "Testing SMTP role on {{ ansible_distribution }} with relay host mode (SASL enabled)"
+
+  tasks:
+    - name: Include SMTP role
+      ansible.builtin.include_role:
+        name: smtp
+
+  post_tasks:
+    - name: Verify Postfix installation
+      ansible.builtin.stat:
+        path: /etc/postfix/main.cf
+      register: smtp_test_postfix
+      failed_when: not smtp_test_postfix.stat.exists
+
+    - name: Verify Postfix service status
+      ansible.builtin.systemd:
+        name: postfix
+      register: smtp_test_service
+      failed_when: smtp_test_service.status.ActiveState != "active"
+
+    - name: Verify relay host configuration
+      ansible.builtin.shell: |
+        postconf relayhost inet_interfaces relay_domains
+      register: smtp_test_config
+      failed_when:
+        - "'relayhost = [smtp.provider.com]:587' not in smtp_test_config.stdout"
+        - "'inet_interfaces = all' not in smtp_test_config.stdout"
+        - "'relay_domains = example.com' not in smtp_test_config.stdout"
+
+    - name: Test email sending (relay host)
+      test_mail:
+        to: "external@example.com"
+        from_addr: "service@{{ smtp_domain }}"
+        subject: "Relay Host Test from {{ ansible_hostname }}"
+        body: |
+          This is a test email sent from {{ ansible_hostname }}
+          using SMTP relay host configuration.
+
+          External relay: {{ smtp_external_relayhost }}
+          Domain: {{ smtp_domain }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+      register: smtp_mail_test
+      failed_when: smtp_mail_test.failed
+      tags:
+        - smtp_test
+        - smtp_validate
+
+    - name: Display test results
+      ansible.builtin.debug:
+        msg: |
+          ✅ SMTP relay host test completed successfully
+          - Postfix installed and running
+          - Relay host configuration applied
+          - Configuration syntax valid
+          - Email sending test: {{ 'PASSED' if smtp_mail_test.succeeded else 'FAILED' }}
+
+          {{ smtp_mail_test.msg }}

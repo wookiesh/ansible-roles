@@ -1,0 +1,49 @@
+---
+galaxy_info:
+  author: Homelab Project
+  description: Keepalived high availability and load balancing solution
+  company: Homelab Infrastructure
+  license: MIT
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+        - trixie
+    - name: RedHat
+      versions:
+        - 8
+        - 9
+    - name: CentOS
+      versions:
+        - 8
+        - 9
+    - name: Rocky
+      versions:
+        - 8
+        - 9
+
+  galaxy_tags:
+    - highavailability
+    - ha
+    - vrrp
+    - loadbalancing
+    - networking
+    - failover
+    - clustering
+    - keepalived
+
+dependencies: []
+
+# Role dependencies can be specified here
+# For example:
+# dependencies:
+#   - { role: common, when: ansible_os_family == "RedHat" }
+#   - { role: firewall, when: keepalived_configure_firewall }

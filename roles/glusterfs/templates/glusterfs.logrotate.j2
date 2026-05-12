@@ -1,0 +1,13 @@
+# GlusterFS log rotation configuration
+{{ glusterfs_log_dir }}/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0644 root root
+    postrotate
+        /usr/bin/killall -HUP glusterd 2>/dev/null || true
+    endscript
+}

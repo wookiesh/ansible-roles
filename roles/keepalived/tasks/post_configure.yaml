@@ -1,0 +1,144 @@
+---
+# Keepalived post-configuration tasks
+- name: Wait for keepalived to initialize
+  ansible.builtin.pause:
+    seconds: 5
+  when: keepalived_service_result.changed
+
+- name: Check if virtual IPs are configured
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && ip addr show | grep '{{ item.1.split()[0] }}' || echo 'IP not found'"
+  loop: "{{ keepalived_vrrp_instances | subelements('virtual_ipaddress') }}"
+  register: keepalived_vip_check
+  changed_when: false
+  failed_when: false
+  when:
+    - keepalived_vrrp_instances | length > 0
+    - keepalived_service_state == "started"
+
+- name: Display virtual IP status
+  ansible.builtin.debug:
+    msg: "🌐 Virtual IP {{ item.item.1.split()[0] }}: {{ 'Configured' if 'IP not found' not in item.stdout else 'Not configured' }}"
+  loop: "{{ keepalived_vip_check.results }}"
+  loop_control:
+    label: "{{ item.item.1.split()[0] }}"
+  when:
+    - keepalived_vrrp_instances | length > 0
+    - keepalived_service_state == "started"
+
+- name: Test connectivity to virtual IPs
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && ping -c 1 -W 1 {{ item.1.split()[0] }} || echo 'Ping failed'"
+  loop: "{{ keepalived_vrrp_instances | subelements('virtual_ipaddress') }}"
+  register: keepalived_vip_ping
+  changed_when: false
+  failed_when: false
+  when:
+    - keepalived_vrrp_instances | length > 0
+    - keepalived_service_state == "started"
+
+- name: Display connectivity test results
+  ansible.builtin.debug:
+    msg: "🔗 Connectivity to {{ item.item.1.split()[0] }}: {{ 'Success' if '1 received' in item.stdout else 'Failed' }}"
+  loop: "{{ keepalived_vip_ping.results }}"
+  loop_control:
+    label: "{{ item.item.1.split()[0] }}"
+  when:
+    - keepalived_vrrp_instances | length > 0
+    - keepalived_service_state == "started"
+
+- name: Verify track scripts are executable
+  ansible.builtin.stat:
+    path: "{{ keepalived_scripts_dir }}/{{ item.name }}"
+  register: keepalived_script_check
+  loop: "{{ keepalived_track_scripts }}"
+  when: keepalived_track_scripts | length > 0
+
+- name: Set executable permissions on track scripts
+  ansible.builtin.file:
+    path: "{{ item.item.script }}"
+    mode: "0755"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+  loop: "{{ keepalived_script_check.results }}"
+  when:
+    - keepalived_track_scripts | length > 0
+    - not item.stat.exists or item.stat.mode | regex_search('^...[4567]') == none
+  become: true
+
+- name: Test track scripts
+  ansible.builtin.command:
+    cmd: "{{ keepalived_scripts_dir }}/{{ item.item.name }}"
+  register: keepalived_script_test
+  changed_when: false
+  failed_when: false
+  loop: "{{ keepalived_script_check.results }}"
+  when:
+    - keepalived_track_scripts | length > 0
+    - item.stat.exists
+  loop_control:
+    label: "{{ item.item.name }}"
+
+
+
+- name: Create keepalived monitoring script
+  ansible.builtin.template:
+    src: monitor_keepalived.sh.j2
+    dest: "/usr/local/bin/monitor-keepalived"
+    mode: "0755"
+    owner: root
+    group: root
+  when: keepalived_metrics_enabled
+
+- name: Test monitoring script
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/monitor-keepalived"
+  register: keepalived_monitor_test
+  changed_when: false
+  failed_when: false
+  when: keepalived_metrics_enabled
+
+- name: Display monitoring script output
+  ansible.builtin.debug:
+    msg: |
+      📊 Monitoring Script Output:
+      {{ keepalived_monitor_test.stdout }}
+  when:
+    - keepalived_metrics_enabled
+    - keepalived_monitor_test.rc == 0
+
+- name: Generate keepalived configuration summary
+  ansible.builtin.template:
+    src: config_summary.txt.j2
+    dest: "{{ keepalived_config_dir }}/config_summary.txt"
+    mode: "0644"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+
+- name: Display configuration summary
+  ansible.builtin.debug:
+    msg: |
+      📋 Keepalived Configuration Summary:
+      • Service Status: {{ keepalived_service_check.status.ActiveState | default('Unknown') }}
+      • VRRP Instances: {{ keepalived_vrrp_instances | length }}
+      • Virtual IPs: {{ keepalived_vrrp_instances | map(attribute='virtual_ipaddress') | map('length') | sum }}
+      • Track Scripts: {{ keepalived_track_scripts | length }}
+      • Virtual Servers: {{ keepalived_virtual_servers | length }}
+      • Config File: {{ keepalived_config_file }}
+      • Log File: {{ keepalived_log_file }}
+  when: keepalived_enabled
+
+- name: Display final status message
+  ansible.builtin.debug:
+    msg: |
+      ✅ Keepalived role completed successfully!
+
+      Next steps:
+      1. Monitor VRRP status with: keepalived --dump-data
+      2. Check logs with: journalctl -u keepalived -f
+      3. Test failover by stopping keepalived on master node
+      4. Monitor virtual IP availability
+
+      Configuration file: {{ keepalived_config_file }}
+      Service status: systemctl status {{ keepalived_service_name }}
+  when: keepalived_enabled

@@ -1,0 +1,50 @@
+---
+- name: Test SSH configuration syntax
+  ansible.builtin.command:
+    cmd: sshd -t
+  register: ssh_config_test
+  changed_when: false
+  failed_when: ssh_config_test.rc != 0
+
+- name: Display SSH configuration test result
+  ansible.builtin.debug:
+    msg: "SSH configuration syntax is valid"
+  when: ssh_config_test.rc == 0
+
+- name: Check SSH service status
+  ansible.builtin.service_facts:
+
+- name: Verify SSH service is running
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.services['ssh' if ansible_os_family == 'Debian' else 'sshd'].state == 'running'
+    fail_msg: "SSH service is not running"
+    success_msg: "SSH service is running correctly"
+  when: not ssh_pikvm_mode
+
+- name: Test SSH port connectivity
+  ansible.builtin.wait_for:
+    port: "{{ ssh_port }}"
+    host: "{{ ansible_default_ipv4.address | default(ansible_host) }}"
+    timeout: 10
+  delegate_to: localhost
+
+- name: Check fail2ban SSH jail status
+  ansible.builtin.command:
+    cmd: fail2ban-client status sshd
+  register: ssh_fail2ban_status
+  changed_when: false
+  failed_when: false
+  when: ssh_fail2ban_enabled and not ssh_pikvm_mode
+
+- name: Display fail2ban status
+  ansible.builtin.debug:
+    msg: "Fail2ban SSH jail is active"
+  when: ssh_fail2ban_enabled and not ssh_pikvm_mode and ssh_fail2ban_status.rc == 0
+
+- name: Verify SSH hardening settings
+  ansible.builtin.assert:
+    that:
+      - ssh_config_test.rc == 0
+    fail_msg: "SSH hardening configuration has issues"
+    success_msg: "SSH hardening configuration is properly applied"

@@ -1,0 +1,34 @@
+#
+# ups.conf - UPS definitions for Network UPS Tools
+#
+# Set global directives, and individual UPS device options for the NUT UPS
+# device drivers.
+#
+
+# Wait 45 seconds for the driver to finish starting.
+maxstartdelay = 45
+
+# Try 3 times to start the driver, before giving up.
+maxretry = 3
+
+# Wait 5 seconds between attempts to start the driver.
+retrydelay = 5
+
+# Start a user "nut".
+user = nut
+
+#
+# Our UPS device(s), output of nut-scanner
+#
+{% for ups in nut_server_ups_list %}
+[{{ ups.name }}]
+    desc = {{ ups.desc }}
+    driver = {{ ups.driver }}
+    offdelay = {{ ups.offdelay }}
+    ondelay = {{ ups.ondelay }}
+    port = {{ ups.port }}
+    product = {{ ups.product }}
+    productid = {{ ups.productid }}
+    vendor = {{ ups.vendor }}
+    vendorid = {{ ups.vendorid }}
+{% endfor %}

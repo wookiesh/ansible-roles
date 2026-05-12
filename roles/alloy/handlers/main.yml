@@ -1,0 +1,6 @@
+---
+- name: Restart Alloy
+  ansible.builtin.command:
+    cmd: "docker service update alloy_alloy --force"
+  become: true
+  failed_when: false

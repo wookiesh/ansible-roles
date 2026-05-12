@@ -1,0 +1,14 @@
+# Allow VRRP and ICMP return traffic for keepalived VIPs
+table inet filter {
+    chain FORWARD {
+        type filter hook forward priority 0; policy accept;
+        # Allow VRRP protocol
+        ip protocol vrrp accept
+        # Allow ICMP echo replies from VIPs
+        {% for vrrp in keepalived_vrrp_instances %}
+        {% for vip in vrrp.virtual_ipaddress %}
+        icmp type echo-reply ip saddr {{ vip.split()[0] }} accept
+        {% endfor %}
+        {% endfor %}
+    }
+}

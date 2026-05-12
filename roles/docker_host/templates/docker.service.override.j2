@@ -1,0 +1,10 @@
+# Docker systemd service override
+[Service]
+# Custom environment variables
+EnvironmentFile=-/etc/default/docker
+EnvironmentFile=-/etc/sysconfig/docker
+
+# Custom systemd options
+{% for option in docker_host_systemd_options %}
+{{ option }}
+{% endfor %}

@@ -1,0 +1,14 @@
+---
+- name: Configure SSH client settings
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_user_dir }}/.ssh/config"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    create: true
+    mode: "0600"
+  loop:
+    - { regexp: "^Host \\\\*", line: "Host *" }
+    - { regexp: "^\\\\s*SendEnv", line: "    SendEnv LANG LC_*" }
+    - { regexp: "^\\\\s*HashKnownHosts", line: "    HashKnownHosts yes" }
+    - { regexp: "^\\\\s*GSSAPIAuthentication", line: "    GSSAPIAuthentication no" }
+  when: ssh_configure_client

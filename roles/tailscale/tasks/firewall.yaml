@@ -1,0 +1,90 @@
+---
+
+
+- name: Configure UFW firewall for Tailscale
+  community.general.ufw:
+    rule: allow
+    port: "{{ tailscale_port }}"
+    proto: udp
+    comment: "Tailscale VPN"
+  when: 
+    - tailscale_configure_firewall
+    - ansible_facts.packages['ufw'] is defined
+  notify: Reload UFW
+
+- name: Configure nftables for Tailscale
+  ansible.builtin.command: |
+    nft add rule inet filter input udp dport {{ tailscale_port }} ct state new accept comment "Tailscale VPN"
+  register: tailscale_nft_input
+  when: 
+    - tailscale_configure_firewall
+    - ansible_facts.packages['ufw'] is not defined
+    - ansible_facts.packages['nftables'] is defined
+  notify: Save nftables
+
+- name: Configure iptables for Tailscale (fallback)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "{{ tailscale_port }}"
+    jump: ACCEPT
+    comment: "Tailscale VPN"
+  when: 
+    - tailscale_configure_firewall
+    - ansible_facts.packages['ufw'] is not defined
+    - ansible_facts.packages['nftables'] is not defined
+  notify: Save iptables
+
+- name: Allow Tailscale interface traffic (nftables)
+  ansible.builtin.command: |
+    nft add rule inet filter forward iifname {{ tailscale_tun_device }} accept comment "Tailscale forward traffic"
+  when: 
+    - tailscale_configure_firewall
+    - tailscale_userspace_networking
+    - ansible_facts.packages['nftables'] is defined
+  notify: Save nftables
+
+- name: Allow Tailscale interface traffic (iptables fallback)
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ tailscale_tun_device }}"
+    jump: ACCEPT
+    comment: "Tailscale forward traffic"
+  when: 
+    - tailscale_configure_firewall
+    - tailscale_userspace_networking
+    - ansible_facts.packages['nftables'] is not defined
+    - ansible_facts.packages['ufw'] is not defined
+  notify: Save iptables
+
+- name: Configure firewall for exit node
+  when: 
+    - tailscale_configure_firewall
+    - tailscale_advertise_exit_node
+  block:
+    - name: Enable IP forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        state: present
+        sysctl_set: true
+        reload: true
+
+    - name: Allow NAT for exit node (nftables)
+      ansible.builtin.command: |
+        nft add table inet nat
+        nft add chain inet nat POSTROUTING { type nat hook postrouting priority 100\; }
+        nft add rule inet nat POSTROUTING oifname {{ ansible_default_ipv4.interface }} saddr {{ tailscale_snat_subnet }} masquerade comment "Tailscale exit node NAT"
+      when: ansible_facts.packages['nftables'] is defined
+      notify: Save nftables
+
+    - name: Allow NAT for exit node (iptables fallback)
+      ansible.builtin.iptables:
+        table: nat
+        chain: POSTROUTING
+        out_interface: "{{ ansible_default_ipv4.interface }}"
+        jump: MASQUERADE
+        source: "{{ tailscale_snat_subnet }}"
+        comment: "Tailscale exit node NAT"
+      when: ansible_facts.packages['nftables'] is not defined
+      notify: Save iptables

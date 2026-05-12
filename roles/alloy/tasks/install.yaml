@@ -1,0 +1,18 @@
+---
+- name: Create Alloy installation directory
+  ansible.builtin.file:
+    path: "{{ alloy_install_dir }}"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ docker_host_services_group }}"
+  become: true
+
+- name: Create Alloy configuration directory
+  ansible.builtin.file:
+    path: "{{ alloy_config_dir }}"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ docker_host_services_group }}"
+  become: true

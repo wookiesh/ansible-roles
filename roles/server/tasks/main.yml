@@ -1,0 +1,131 @@
+---
+# =============================================================================
+# SERVER ROLE - System Configuration and Management
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# HOSTNAME MANAGEMENT
+# -----------------------------------------------------------------------------
+- name: Manage system hostname
+  when: server_hostname_manage
+  block:
+    - name: Display hostname configuration
+      ansible.builtin.debug:
+        msg: "Configuring hostname: {{ ansible_hostname }} -> {{ inventory_hostname }}"
+
+    - name: Set system hostname
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update /etc/hostname file
+      ansible.builtin.copy:
+        content: "{{ inventory_hostname }}\n"
+        dest: /etc/hostname
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart network services
+
+    - name: Update /etc/hosts with new hostname
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1 {{ server_hostname_fqdn }} {{ inventory_hostname.split('.')[0] }}"
+        state: present
+        create: true
+        mode: "0644"
+      when: server_hostname_update_hosts
+
+    - name: Verify hostname configuration
+      ansible.builtin.command: hostname
+      register: server_hostname_verification
+      changed_when: false
+
+    - name: Display hostname verification
+      ansible.builtin.debug:
+        msg: "Hostname successfully set to: {{ server_hostname_verification.stdout }}"
+
+# -----------------------------------------------------------------------------
+# AUTOMATIC UPDATES CONFIGURATION
+# -----------------------------------------------------------------------------
+- name: Configure automatic updates
+  when: server_automatic_updates_enabled
+  block:
+    - name: Install unattended-upgrades package
+      ansible.builtin.package:
+        name: unattended-upgrades
+        state: present
+
+    - name: Configure automatic updates
+      ansible.builtin.template:
+        src: 20auto-upgrades.j2
+        dest: "{{ server_auto_update_config_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart unattended-upgrades
+
+    - name: Enable and start automatic updates service
+      ansible.builtin.systemd:
+        name: unattended-upgrades
+        enabled: true
+        state: started
+
+# -----------------------------------------------------------------------------
+# APTICRON NOTIFICATIONS
+# -----------------------------------------------------------------------------
+- name: Configure apticron notifications
+  when: server_apticron_enabled
+  block:
+    - name: Install apticron package
+      ansible.builtin.package:
+        name: apticron
+        state: present
+
+    - name: Ensure /etc/apticron directory exists
+      ansible.builtin.file:
+        path: /etc/apticron
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure apticron
+      ansible.builtin.copy:
+        dest: /etc/apticron/apticron.conf
+        content: |
+          # Created by Ansible - Server Role
+          EMAIL="{{ server_apticron_email }}"
+          SYSTEM="{{ server_hostname_fqdn }}"
+          NOTIFY_HOLD="false"
+        owner: root
+        group: root
+        mode: "0644"
+        force: false
+
+# -----------------------------------------------------------------------------
+# SYSTEM PERFORMANCE TUNING
+# -----------------------------------------------------------------------------
+- name: Apply system performance tuning
+  when: server_performance_tuning_enabled
+  block:
+    - name: Configure system swappiness
+      ansible.posix.sysctl:
+        name: vm.swappiness
+        value: "{{ server_performance_swappiness }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-server-performance.conf
+        reload: true
+
+# -----------------------------------------------------------------------------
+# VERIFICATION AND REPORTING
+# -----------------------------------------------------------------------------
+- name: Display server configuration summary
+  ansible.builtin.debug:
+    msg: |
+      Server configuration completed for {{ inventory_hostname }}
+      Hostname: {{ inventory_hostname }}
+      FQDN: {{ server_hostname_fqdn }}
+      Automatic Updates: {{ 'enabled' if server_automatic_updates_enabled else 'disabled' }}
+      Apticron: {{ 'enabled' if server_apticron_enabled else 'disabled' }}
+      Performance Tuning: {{ 'enabled' if server_performance_tuning_enabled else 'disabled' }}

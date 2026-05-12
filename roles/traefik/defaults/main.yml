@@ -1,0 +1,90 @@
+---
+# Traefik reverse proxy configuration
+traefik_enabled: false
+traefik_version: "v3.6.15"
+traefik_domain:
+
+# Deployment mode: compose or swarm
+traefik_deployment_mode: "{{ 'swarm' if docker_host_swarm_enabled | default(false) else 'compose' }}"
+
+# Docker integration - depends on docker_host role
+traefik_docker_services_root: "{{ docker_host_services_root | default('/opt/docker') }}"
+traefik_docker_services_group: "{{ docker_host_services_group | default('docker') }}"
+traefik_install_dir: "{{ traefik_docker_services_root }}/traefik"
+traefik_config_dir: "{{ traefik_install_dir }}/config"
+traefik_compose_file: "{{ traefik_install_dir }}/compose.yaml"
+traefik_swarm_file: "{{ traefik_install_dir }}/swarm.yaml"
+
+# Traefik network configuration
+traefik_network_name: "traefik_public"
+traefik_network_external: true
+traefik_network_driver: "{{ 'overlay' if traefik_deployment_mode == 'swarm' else 'bridge' }}"
+traefik_network_attachable: "{{ traefik_deployment_mode == 'swarm' }}"
+
+# Traefik port mode configuration
+traefik_port_mode: "ingress" # host or ingress (default: ingress)
+
+# Traefik additional services
+traefik_whoami_enabled: true
+traefik_whoami_domain: "whoami.{{ traefik_domain | regex_replace('^traefik\\.', '') }}"
+
+# Traefik visualizer
+traefik_visualizer_enabled: true
+traefik_visualizer_domain: "visualizer.{{ traefik_domain | regex_replace('^traefik\\.', '') }}"
+
+# Traefik TLS domains configuration
+traefik_tls_domains: {}
+
+# Docker Swarm secret names for the TLS certificate and key
+traefik_tls_secret_cert: "traefik.tls.crt"
+traefik_tls_secret_key: "traefik.tls.key"
+
+# Traefik dynamic configuration
+traefik_dynamic_config: {}
+
+# Traefik environment variables
+traefik_environment:
+  TZ: "{{ timezone | default('Europe/Brussels') }}"
+  CLOUDFLARE_DNS_API_TOKEN: "{{ vault_cloudflare_dns_api_token | default('') }}"
+
+# Traefik healthcheck configuration
+traefik_healthcheck_enabled: true
+traefik_healthcheck_interval: "30s"
+traefik_healthcheck_timeout: "3s"
+traefik_healthcheck_retries: 30
+
+# Swarm deployment configuration
+traefik_swarm_mode: "replicated" # replicated or global
+traefik_swarm_replicas: 2
+traefik_swarm_placement_constraints: []
+traefik_swarm_placement_preferences: []
+traefik_swarm_update_config:
+  parallelism: 1
+  delay: 10s
+  failure_action: rollback
+  monitor: 60s
+  max_failure_ratio: 0.3
+  order: stop-first
+traefik_swarm_restart_policy:
+  condition: any
+  delay: 5s
+  max_attempts: 3
+  window: 120s
+traefik_swarm_resources:
+  limits:
+    cpus: "1.0"
+    memory: 512M
+  reservations:
+    cpus: "0.25"
+    memory: 128M
+
+# Access log file (opt-in)
+# Set to a non-empty path to enable: directory creation, bind mount, and logrotate
+# Also add accessLog to traefik_static_config (see README for example)
+traefik_access_log_path: ""
+traefik_log_rotate_frequency: "daily"
+traefik_log_rotate_keep: 7
+traefik_log_rotate_maxsize: "100M"
+
+# Traefik static configuration (variable-based approach)
+traefik_static_config: {}

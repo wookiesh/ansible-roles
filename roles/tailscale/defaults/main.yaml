@@ -1,0 +1,102 @@
+---
+# Tailscale VPN Configuration (2025 Best Practices)
+tailscale_enabled: false
+tailscale_version: "latest"
+tailscale_install_method: "repository" # repository (recommended), script, package
+
+# Authentication and Registration
+tailscale_auth_method: "authkey" # authkey, oauth, interactive
+tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
+tailscale_oauth_client_id: "{{ vault_tailscale_oauth_client_id | default('') }}"
+tailscale_oauth_client_secret: "{{ vault_tailscale_oauth_client_secret | default('') }}"
+tailscale_auth_timeout: 300
+
+# Network Configuration
+tailscale_advertise_routes: []
+tailscale_accept_routes: false
+tailscale_advertise_exit_node: false
+tailscale_accept_dns: true
+tailscale_exit_node_allow_lan_access: false
+tailscale_exit_node: ""
+
+# Tags and ACLs
+tailscale_tags: []
+tailscale_force_reauth: false
+tailscale_reset: false
+
+# Firewall and Security
+tailscale_configure_firewall: false
+tailscale_firewall_zone: "trusted"
+tailscale_allow_incoming: true
+tailscale_allow_outgoing: true
+
+# Service Management
+tailscale_service_enabled: true
+tailscale_service_state: "started"
+tailscale_auto_update: false
+tailscale_restart_on_config_change: true
+
+# Logging and Monitoring
+tailscale_log_level: "info" # debug, info, warn, error
+tailscale_debug_mode: false
+tailscale_health_check_enabled: true
+tailscale_health_check_interval: 30
+
+# Paths and Directories
+tailscale_config_file: "/etc/default/tailscaled"
+tailscale_state_dir: "/var/lib/tailscale"
+tailscale_socket_path: "/run/tailscale/tailscaled.sock"
+
+# File Permissions
+tailscale_file_permissions: "0644"
+tailscale_executable_permissions: "0755"
+
+# OS-specific package names
+tailscale_packages_debian:
+  - "tailscale"
+tailscale_packages_redhat:
+  - "tailscale"
+tailscale_packages_arch:
+  - "tailscale"
+
+# Repository configuration
+tailscale_repository_enabled: true
+tailscale_repository_key_url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.noarmor.gpg"
+tailscale_repository_key_path: "/usr/share/keyrings/tailscale-archive-keyring.gpg"
+tailscale_repository_list_path: "/etc/apt/sources.list.d/tailscale.list"
+
+# Advanced Configuration
+tailscale_userspace_networking: true
+tailscale_tun_device: "tailscale0"
+tailscale_port: 41641
+tailscale_snat_subnet: "100.64.0.0/10"
+
+# DNS Configuration
+tailscale_dns_servers: []
+tailscale_dns_search_domains: []
+tailscale_dns_overrides: {}
+
+# Control Server Configuration
+tailscale_control_url: "" # Default: https://control.tailscale.com
+tailscale_control_cert: ""
+tailscale_derp_region: ""
+
+# Performance Tuning
+tailscale_network_mode: "userspace" # userspace, kernel
+tailscale_heartbeat_interval: 60
+tailscale_keepalive_interval: 25
+
+# Integration Features
+tailscale_ssh_enabled: false
+tailscale_magic_dns_enabled: true
+tailscale_mtu: 1280
+
+# Backup and Recovery
+tailscale_backup_config: false
+tailscale_backup_retention_days: 30
+
+# Environment Variables
+tailscale_environment:
+  TS_NO_HOSTNAME: "false"
+  TS_DEBUG_FIREWALL: "false"
+  TS_DEBUG_NET: "false"

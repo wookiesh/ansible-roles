@@ -1,0 +1,51 @@
+secrets:
+  grafana_cloud_api_key:
+    external: true
+
+services:
+  alloy:
+    image: grafana/alloy:{{ alloy_version }}
+    hostname: "{{ '{{.Node.Hostname}}' }}"
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --stability.level=generally-available
+    volumes:
+      - {{ alloy_config_dir }}/config.alloy:/etc/alloy/config.alloy:ro
+{% if alloy_traefik_logs_enabled and alloy_traefik_log_path %}
+      - {{ alloy_traefik_log_path }}:{{ alloy_traefik_log_path }}:ro
+{% endif %}
+    secrets:
+      - grafana_cloud_api_key
+    networks:
+      - hostnet
+    deploy:
+      mode: global
+      placement:
+        constraints:
+{% for constraint in alloy_swarm_placement_constraints %}
+          - {{ constraint }}
+{% endfor %}
+      resources:
+        limits:
+          cpus: '{{ alloy_swarm_resources.limits.cpus }}'
+          memory: {{ alloy_swarm_resources.limits.memory }}
+        reservations:
+          cpus: '{{ alloy_swarm_resources.reservations.cpus }}'
+          memory: {{ alloy_swarm_resources.reservations.memory }}
+      restart_policy:
+        condition: {{ alloy_swarm_restart_policy.condition }}
+        delay: {{ alloy_swarm_restart_policy.delay }}
+        max_attempts: {{ alloy_swarm_restart_policy.max_attempts }}
+        window: {{ alloy_swarm_restart_policy.window }}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+networks:
+  hostnet:
+    external: true
+    name: host

@@ -1,0 +1,53 @@
+---
+# Docker Stacks Role - Simplified deployment for existing YAML files
+# Only deploys existing Docker Compose/Swarm stack files
+
+- name: Validate basic Docker stacks configuration
+  ansible.builtin.assert:
+    that:
+      - docker_stacks_enabled is boolean
+      - docker_stacks_base_dir is defined
+      - docker_stacks_base_dir | length > 0
+    fail_msg: |
+      ❌ Invalid Docker stacks configuration:
+      - docker_stacks_enabled: {{ docker_stacks_enabled }}
+      - docker_stacks_base_dir: {{ docker_stacks_base_dir | default('UNDEFINED') }}
+    success_msg: "✅ Docker stacks variables validated successfully"
+  when:
+    - docker_stacks_enabled
+    - inventory_hostname == docker_swarm_manager | default('localhost')
+
+- name: Create stacks base directory
+  ansible.builtin.file:
+    path: "{{ docker_stacks_base_dir }}"
+    state: directory
+    mode: "2775"  # sticky bit + group write
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+  when:
+    - docker_stacks_enabled
+    - inventory_hostname == docker_swarm_manager | default('localhost')
+
+- name: Deploy stack files
+  ansible.builtin.include_tasks: deploy_stack.yaml
+  loop: "{{ docker_stacks | default([]) }}"
+  loop_control:
+    loop_var: stack_item
+  when:
+    - docker_stacks_enabled
+    - docker_stacks is defined
+    - inventory_hostname == docker_swarm_manager | default('localhost')
+
+- name: Display deployment summary
+  ansible.builtin.debug:
+    msg: |
+      🐳 Docker Stacks Deployment Summary
+      Base Directory: {{ docker_stacks_base_dir }}
+      Stacks Deployed: {{ docker_stacks | default([]) | length }}
+
+      {% for stack in docker_stacks | default([]) %}
+      - {{ stack.name }} ({{ stack.stack_template }})
+      {% endfor %}
+  when:
+    - docker_stacks_enabled
+    - inventory_hostname == docker_swarm_manager | default('localhost')

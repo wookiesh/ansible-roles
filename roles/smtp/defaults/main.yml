@@ -1,0 +1,66 @@
+---
+# SMTP Role Configuration
+# Following 2025 Ansible best practices
+
+# Main Configuration
+smtp_enabled: "{{ smtp_null_client_enabled or smtp_relayhost_enabled }}"
+smtp_mailname: "{{ ansible_fqdn }}"
+smtp_domain: "{{ server_domain if server_domain is defined else ansible_domain }}"
+smtp_internal_domain: "" # Required for relay mode: internal FQDN suffix for address rewriting (e.g. lan.example.com)
+
+# Null Client Configuration
+smtp_null_client_enabled: false
+smtp_relayhost: "" # Required if null_client_enabled
+smtp_relayhost_port: 25
+
+# Relay Host Configuration
+smtp_relayhost_enabled: false
+smtp_relay_domains: [] # Required if relayhost_enabled
+smtp_external_relayhost: ""
+smtp_external_relayhost_port: 587
+
+# Security & TLS Configuration
+smtp_use_tls: true
+smtp_tls_security_level: "encrypt"
+smtp_sasl_auth_enable: false
+smtp_sasl_security_options: "noanonymous"
+smtp_sasl_tls_security_options: "noanonymous,noplaintext"
+smtp_sasl_password_maps: "hash:/etc/postfix/sasl_passwd"
+
+# Authentication (should use vault variables in production)
+smtp_sasl_user: "{{ vault_smtp_sasl_user | default('') }}"
+smtp_sasl_password: "{{ vault_smtp_sasl_password | default('') }}"
+
+# TLS Protocol Settings
+smtp_tls_mandatory_protocols: "!SSLv2, !SSLv3, !TLSv1, !TLSv1.1, TLSv1.2, TLSv1.3"
+smtp_tls_mandatory_ciphers: "high"
+
+# System Aliases
+smtp_root_alias: "" # Optional: redirect root mail to an external address (e.g. admin@example.com)
+smtp_aliases:
+  postmaster: root
+  nobody: root
+  hostmaster: root
+  webmaster: root
+  www: root
+
+# Security Settings
+smtp_disable_vrfy_command: true
+smtp_strict_rfc821_envelopes: true
+smtp_delay_reject: true
+smtp_helo_required: true
+smtp_hard_error_limit: 5
+smtp_error_sleep_time: "10s"
+smtp_message_size_limit: 26214400 # 25MB
+
+# Relay Configuration Files
+smtp_relay_config_files:
+  - src: "header_checks.j2"
+    dest: "/etc/postfix/header_checks"
+    mode: "0644"
+  - src: "sender_canonical.j2"
+    dest: "/etc/postfix/sender_canonical"
+    mode: "0644"
+  - src: "recipient_canonical.j2"
+    dest: "/etc/postfix/recipient_canonical"
+    mode: "0644"

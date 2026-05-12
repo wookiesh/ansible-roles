@@ -1,0 +1,13 @@
+Include config.d/*
+
+Host *
+StrictHostKeyChecking yes
+ServerAliveInterval 300
+ServerAliveCountMax 2
+ControlMaster auto
+ControlPersist 10m
+ControlPath ~/.ssh/cm-%r@%h:%p
+{% if ansible_os_family == "Darwin" %}
+AddKeysToAgent yes
+UseKeychain yes
+{% endif %}

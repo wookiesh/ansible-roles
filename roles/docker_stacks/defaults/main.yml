@@ -1,0 +1,12 @@
+---
+# Simplified Docker Stacks Configuration
+# Only manages deployment of existing YAML files
+
+# Enable/disable Docker stacks deployment
+docker_stacks_enabled: false
+
+# Base directory for stack files
+docker_stacks_base_dir: "{{ docker_host_services_root | default('/opt/docker') }}/stacks"
+
+# Deploy host (only deploy stacks on this host)
+docker_swarm_manager: "localhost"

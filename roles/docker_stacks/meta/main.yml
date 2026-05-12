@@ -1,0 +1,32 @@
+---
+galaxy_info:
+  role_name: docker_stacks
+  author: wookiesh
+  description: Deploy and manage Docker Compose and Docker Swarm stacks with 2025 Ansible best practices
+
+  license: MIT
+
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - bullseye
+    - name: Ubuntu
+      versions:
+        - jammy
+        - focal
+
+  galaxy_tags:
+    - docker
+    - compose
+    - swarm
+    - stacks
+    - containers
+    - orchestration
+    - deployment
+    - infrastructure
+# Otherwise, always runs docher_host before
+# dependencies:
+#   - role: docker_host

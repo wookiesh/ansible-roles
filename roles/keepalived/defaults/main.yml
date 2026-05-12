@@ -1,0 +1,144 @@
+---
+# Keepalived installation and configuration role
+keepalived_enabled: false
+
+# Installation settings
+keepalived_install_method: "package" # package or source
+keepalived_version: "latest"
+keepalived_auto_update: false
+
+# Service configuration
+keepalived_service_name: "keepalived"
+keepalived_service_enabled: true
+keepalived_service_state: "started"
+
+# Network configuration
+keepalived_interface: "eth0" # Interface to use for VRRP
+keepalived_router_id: "{{ inventory_hostname_short | default(ansible_hostname) }}"
+keepalived_priority: 100 # Priority (higher = more preferred as master)
+
+# VRRP instance configuration
+keepalived_vrrp_instances: []
+# Example:
+# - name: "VI_1"
+#   state: "MASTER"  # MASTER, BACKUP, or FAULT
+#   interface: "{{ keepalived_interface }}"
+#   virtual_router_id: 51
+#   priority: "{{ keepalived_priority }}"
+#   advert_int: 1
+#   authentication:
+#     auth_type: "PASS"
+#     auth_pass: "{{ vault_keepalived_auth_pass }}"
+#   virtual_ipaddress:
+#     - "192.168.1.100/24 dev {{ keepalived_interface }}"
+#   track_scripts:
+#     - "check_haproxy"
+#   track_interfaces:
+#     - "{{ keepalived_interface }}"
+
+# Virtual server configuration (for load balancing)
+keepalived_virtual_servers: []
+# Example:
+# - delay_loop: 6
+#   lb_algo: "rr"  # rr, wrr, lc, wlc, sh, dh, lblc
+#   lb_kind: "NAT"  # NAT, DR, TUN
+#   persistence_timeout: 50
+#   protocol: "TCP"
+#   virtual_server: "192.168.1.100 80"
+#   real_server:
+#     - "192.168.1.101 80"
+#     - "192.168.1.102 80"
+
+# Health check scripts
+keepalived_track_scripts: []
+# Example:
+# - name: "check_haproxy"
+#   script: "/usr/local/bin/check_haproxy.sh"
+#   interval: 2
+#   weight: -20
+#   fall: 3
+#   rise: 2
+
+# Notification scripts
+keepalived_notify_scripts: []
+# Example:
+# - name: "notify_master"
+#   script: "/usr/local/bin/notify_master.sh"
+# - name: "notify_backup"
+#   script: "/usr/local/bin/notify_backup.sh"
+# - name: "notify_fault"
+#   script: "/usr/local/bin/notify_fault.sh"
+
+# Configuration file settings
+keepalived_config_dir: "/etc/keepalived"
+keepalived_config_file: "{{ keepalived_config_dir }}/keepalived.conf"
+keepalived_config_backup: true
+keepalived_config_mode: "0644"
+keepalived_config_owner: "root"
+keepalived_config_group: "root"
+
+# Log settings
+keepalived_log_dir: "/var/log/keepalived"
+keepalived_log_file: "{{ keepalived_log_dir }}/keepalived.log"
+keepalived_log_level: "INFO" # DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL
+keepalived_syslog_enabled: true
+
+# Security settings
+keepalived_user: "root"
+keepalived_group: "root"
+keepalived_enable_non_root: false
+keepalived_drop_capabilities: true
+
+# Monitoring and metrics
+keepalived_metrics_enabled: false
+keepalived_stats_socket: "{{ keepalived_config_dir }}/stats.sock"
+keepalived_stats_socket_timeout: 5
+
+# Email notifications (optional)
+keepalived_email_enabled: false
+keepalived_email_from: "keepalived@{{ ansible_domain }}"
+keepalived_email_to: []
+keepalived_email_smtp_server: "localhost"
+keepalived_email_smtp_port: 587
+keepalived_email_smtp_username: ""
+keepalived_email_smtp_password: "{{ vault_keepalived_smtp_password | default('') }}"
+keepalived_email_smtp_tls: true
+
+# Custom scripts directory
+keepalived_scripts_dir: "/usr/local/bin"
+keepalived_custom_scripts: []
+# Example:
+# - name: "check_service.sh"
+#   content: |
+#     #!/bin/bash
+#     # Custom health check script
+#     systemctl is-active nginx >/dev/null 2>&1
+#   mode: "0755"
+
+# Global configuration
+keepalived_global_defs:
+  router_id: "{{ keepalived_router_id }}"
+  script_user: "{{ keepalived_user }}"
+  enable_script_security: "{{ keepalived_drop_capabilities }}"
+  # Additional global options
+  # max_auto_priority: 20
+  # min_auto_priority: 1
+  # vrrp_mcast_group4: 224.0.0.18
+  # vrrp_mcast_group6: ff02::12
+  # vrrp_ipsets: []
+
+# Advanced settings
+keepalived_extra_config: "" # Additional configuration lines
+keepalived_sysctl_params:
+  # VRRP and HA related sysctl parameters
+  - name: "net.ipv4.ip_nonlocal_bind"
+    value: 1
+  - name: "net.ipv4.conf.all.arp_ignore"
+    value: 1
+  - name: "net.ipv4.conf.all.arp_announce"
+    value: 2
+
+# Testing and validation
+keepalived_validate_config: true
+keepalived_test_mode: false
+keepalived_dry_run: false

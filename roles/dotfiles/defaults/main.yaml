@@ -1,0 +1,21 @@
+---
+dotfiles_enabled: true
+dotfiles_user: ""
+dotfiles_repo: ""
+dotfiles_dest: "dev/dotfiles"
+dotfiles_version: "main"
+dotfiles_force_update: false
+dotfiles_backup_existing: true
+dotfiles_stow_packages: []
+dotfiles_custom_scripts: []
+# Bootstrap configuration
+dotfiles_bootstrap_remote: true
+dotfiles_bootstrap_dev: false
+dotfiles_bootstrap_script: "./bootstrap.sh"
+dotfiles_shell_rc: "~/.bashrc"
+
+# OS-specific packages
+dotfiles_packages_debian: ["git", "stow"]
+dotfiles_packages_redhat: ["git", "stow"]
+dotfiles_packages_arch: ["git", "stow"]
+dotfiles_packages_darwin: ["git", "stow"]

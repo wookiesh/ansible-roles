@@ -1,0 +1,12 @@
+---
+- name: Restart Traefik (Compose mode)
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ traefik_compose_file }} restart"
+  become: true
+  when: traefik_deployment_mode == "compose"
+
+- name: Restart Traefik (Swarm mode)
+  ansible.builtin.command:
+    cmd: "docker service update traefik_proxy --force"
+  become: true
+  when: traefik_deployment_mode == "swarm"

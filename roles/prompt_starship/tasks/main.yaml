@@ -1,0 +1,86 @@
+---
+- name: Get admin user home directory
+  ansible.builtin.user:
+    name: "{{ admin_user_name }}"
+    state: present
+  register: admin_user_info
+  become: true
+
+- name: Ensure en_US.UTF-8 locale is enabled
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: "^#?\\s*en_US.UTF-8"
+    line: "en_US.UTF-8 UTF-8"
+    state: present
+  become: true
+  become_user: root
+  notify: Generate locales
+
+- name: Generate locales immediately
+  ansible.builtin.command: locale-gen
+  become: true
+  become_user: root
+  changed_when: true
+
+- name: Update system locale to en_US.UTF-8
+  ansible.builtin.command: update-locale LANG=en_US.UTF-8
+  become: true
+  become_user: root
+  changed_when: true
+
+- name: Check if Starship is already installed
+  ansible.builtin.command: which starship
+  register: prompt_starship_starship_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Download and install Starship prompt
+  ansible.builtin.get_url:
+    url: "https://starship.rs/install.sh"
+    dest: "/tmp/install_starship.sh"
+    mode: "0755"
+  when: prompt_starship_starship_check.rc != 0
+  become: true
+
+- name: Run Starship installation script
+  ansible.builtin.shell: "/tmp/install_starship.sh -y"
+  become: true
+  become_user: root
+  args:
+    executable: /bin/sh
+  when: prompt_starship_starship_check.rc != 0
+  changed_when: true
+
+- name: Check if ZDOTDIR config exists
+  ansible.builtin.stat:
+    path: "{{ prompt_starship_zdotdir }}/.zshrc"
+  register: prompt_starship_zdotdir_zshrc
+
+- name: Check if standard .zshrc exists
+  ansible.builtin.stat:
+    path: "{{ admin_user_info.home }}/.zshrc"
+  register: prompt_starship_standard_zshrc
+
+- name: Ensure Starship is added to ZDOTDIR config if it exists
+  ansible.builtin.lineinfile:
+    path: "{{ prompt_starship_zdotdir }}/.zshrc"
+    line: 'eval "$(starship init zsh)"'
+    create: false
+    owner: "{{ admin_user_name }}"
+  when: prompt_starship_zdotdir_zshrc.stat.exists
+
+- name: Ensure Starship is added to standard .zshrc if it exists
+  ansible.builtin.lineinfile:
+    path: "{{ admin_user_info.home }}/.zshrc"
+    line: 'eval "$(starship init zsh)"'
+    create: false
+    owner: "{{ admin_user_name }}"
+    group: "{{ admin_user_name }}"
+  when: prompt_starship_standard_zshrc.stat.exists and not prompt_starship_zdotdir_zshrc.stat.exists
+
+- name: Clean up Starship installation script
+  ansible.builtin.file:
+    path: "/tmp/install_starship.sh"
+    state: absent
+  when: prompt_starship_starship_check.rc != 0
+  changed_when: true

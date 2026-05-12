@@ -1,0 +1,17 @@
+---
+# Handlers for GlusterFS service management
+- name: Restart glusterd
+  ansible.builtin.systemd:
+    name: glusterd
+    state: restarted
+  when: glusterfs_auto_start
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Cleanup test file
+  ansible.builtin.file:
+    path: "{{ glusterfs_mount_dir }}/.glusterfs_test"
+    state: absent
+  when: gluster_mount_verify.stat.exists

@@ -1,0 +1,17 @@
+---
+create_admin_users_enabled: false
+create_admin_users_git_url: ""
+create_admin_users_shell: /bin/bash
+create_admin_users_default_groups:
+  - sudo
+
+create_admin_users_pam_sudo_enabled: true
+
+# List of admin users to create — define in inventory, not here
+# create_admin_users_list:
+#   - name: alice             # Linux username
+#     git_user: jpn           # username on the git provider
+#     full_name: Alice        # optional, sets GECOS field
+#     groups: [sudo, docker]
+#     shell: /bin/zsh         # optional, overrides create_admin_users_shell
+create_admin_users_list: []

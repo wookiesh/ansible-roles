@@ -1,0 +1,118 @@
+---
+- name: Create Docker services root directory
+  ansible.builtin.file:
+    path: "{{ traefik_docker_services_root }}"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+  become: true
+
+- name: Set setgid bit on Docker services root directory
+  ansible.builtin.command:
+    cmd: "chmod g+s {{ traefik_docker_services_root }}"
+  become: true
+  changed_when: false
+
+- name: Create Traefik installation directory
+  ansible.builtin.file:
+    path: "{{ traefik_install_dir }}"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+  become: true
+
+- name: Set setgid bit on Traefik installation directory
+  ansible.builtin.command:
+    cmd: "chmod g+s {{ traefik_install_dir }}"
+  become: true
+  changed_when: false
+
+- name: Create Traefik configuration directory
+  ansible.builtin.file:
+    path: "{{ traefik_config_dir }}"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+  become: true
+
+- name: Set setgid bit on Traefik configuration directory
+  ansible.builtin.command:
+    cmd: "chmod g+s {{ traefik_config_dir }}"
+  become: true
+  changed_when: false
+
+- name: Create Traefik dynamic configuration subdirectory
+  ansible.builtin.file:
+    path: "{{ traefik_config_dir }}/dynamic"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+  become: true
+
+- name: Set setgid bit on Traefik dynamic configuration subdirectory
+  ansible.builtin.command:
+    cmd: "chmod g+s {{ traefik_config_dir }}/dynamic"
+  become: true
+  changed_when: false
+
+- name: Create Docker shared directories
+  ansible.builtin.file:
+    path: "{{ traefik_docker_services_root }}/shared/{{ item }}"
+    state: directory
+    mode: "2775"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+  become: true
+  loop:
+    - networks
+    - volumes
+
+- name: Set setgid bit on Docker shared directories
+  ansible.builtin.command:
+    cmd: "chmod g+s {{ traefik_docker_services_root }}/shared/{{ item }}"
+  become: true
+  changed_when: false
+  loop:
+    - networks
+    - volumes
+
+- name: Create Traefik access log directory
+  ansible.builtin.file:
+    path: "{{ traefik_access_log_path }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+  become: true
+  when: traefik_access_log_path | length > 0
+
+- name: Create Traefik network (Compose mode - bridge)
+  ansible.builtin.command:
+    cmd: "docker network create {{ traefik_network_name }} --driver bridge"
+  become: true
+  register: traefik_network_bridge_result
+  failed_when:
+    - traefik_network_bridge_result.rc != 0
+    - '"already exists" not in traefik_network_bridge_result.stderr'
+  changed_when: traefik_network_bridge_result.rc == 0
+  when:
+    - traefik_network_external
+    - traefik_deployment_mode == "compose"
+
+- name: Create Traefik network (Swarm mode - overlay)
+  ansible.builtin.command:
+    cmd: "docker network create {{ traefik_network_name }} --driver overlay --attachable"
+  become: true
+  register: traefik_network_overlay_result
+  failed_when:
+    - traefik_network_overlay_result.rc != 0
+    - '"already exists" not in traefik_network_overlay_result.stderr'
+  changed_when: traefik_network_overlay_result.rc == 0
+  when:
+    - traefik_network_external
+    - traefik_deployment_mode == "swarm"
+  run_once: true  # Only run on one manager in Swarm

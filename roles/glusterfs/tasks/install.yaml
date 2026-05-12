@@ -1,0 +1,107 @@
+---
+# Install GlusterFS packages and dependencies
+- name: Update package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install required system packages
+  ansible.builtin.package:
+    name:
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - xfsprogs
+      - attr
+    state: present
+
+- name: Check if GlusterFS repository is already configured
+  ansible.builtin.stat:
+    path: "/etc/apt/sources.list.d/glusterfs.list"
+  register: glusterfs_repo_check
+
+- name: Add GlusterFS repository GPG key
+  ansible.builtin.apt_key:
+    url: "https://download.gluster.org/pub/gluster/glusterfs/{{ glusterfs_version | default('10') }}/rsa.pub"
+    state: present
+  when: not glusterfs_repo_check.stat.exists and glusterfs_install_method == "repository"
+
+- name: Add GlusterFS repository
+  ansible.builtin.apt_repository:
+    repo:
+      "deb https://download.gluster.org/pub/gluster/glusterfs/{{ glusterfs_version |
+      default('10') }}/LATEST/Debian/{{ ansible_distribution_release }}.amd64/ {{ ansible_distribution_release }} main"
+    state: present
+    filename: glusterfs
+    update_cache: true
+  when: not glusterfs_repo_check.stat.exists and glusterfs_install_method == "repository"
+
+- name: Install GlusterFS server packages
+  ansible.builtin.package:
+    name:
+      - glusterfs-server
+      - glusterfs-client
+      - glusterfs-common
+    state: "{{ 'latest' if glusterfs_version == 'latest' else 'present' }}"
+
+- name: Check if GlusterFS service is running
+  ansible.builtin.systemd:
+    name: glusterd
+  register: glusterfs_service_check
+  failed_when: false
+
+- name: Start and enable GlusterFS service
+  ansible.builtin.systemd:
+    name: glusterd
+    state: started
+    enabled: "{{ glusterfs_auto_start }}"
+  when: glusterfs_auto_start
+
+- name: Verify GlusterFS installation
+  ansible.builtin.command: gluster --version
+  register: glusterfs_version_check
+  changed_when: false
+  failed_when: glusterfs_version_check.rc != 0
+
+- name: Display GlusterFS version
+  ansible.builtin.debug:
+    msg: "✅ GlusterFS installed: {{ glusterfs_version_check.stdout_lines[0] }}"
+
+- name: Create GlusterFS directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ glusterfs_dir_permissions }}"
+    owner: root
+    group: root
+  loop:
+    - "{{ glusterfs_config_dir }}"
+    - "{{ glusterfs_log_dir }}"
+    - "{{ glusterfs_data_dir }}"
+    - "{{ glusterfs_brick_dir }}"
+
+- name: Configure GlusterFS log rotation
+  ansible.builtin.template:
+    src: glusterfs.logrotate.j2
+    dest: "/etc/logrotate.d/glusterfs"
+    mode: "0644"
+    owner: root
+    group: root
+  when: glusterfs_backup_config
+
+- name: Configure GlusterFS performance tuning
+  ansible.builtin.lineinfile:
+    path: "{{ glusterfs_config_dir }}/glusterd.vol"
+    regexp: "^    option {{ item.key }} "
+    line: "    option {{ item.key }} {{ item.value }}"
+    create: true
+    backup: "{{ glusterfs_backup_config }}"
+  loop: "{{ glusterfs_performance_options | default({}) | dict2items }}"
+  when: glusterfs_performance_enabled and glusterfs_performance_options is defined
+  notify: Restart glusterd
+
+- name: Configure firewall rules
+  ansible.builtin.include_tasks: firewall.yaml
+  when: glusterfs_firewall_enabled

@@ -1,0 +1,7 @@
+---
+- hosts: localhost
+  remote_user: root
+  roles:
+    - role: alloy
+      vars:
+        alloy_enabled: false

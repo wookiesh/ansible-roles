@@ -1,0 +1,65 @@
+---
+- name: Create Alloy configuration file
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: "{{ alloy_config_dir }}/config.alloy"
+    mode: "0640"
+    owner: root
+    group: "{{ docker_host_services_group }}"
+    backup: true
+  become: true
+  notify: Restart Alloy
+
+- name: Create Alloy Swarm stack file
+  ansible.builtin.template:
+    src: swarm.yaml.j2
+    dest: "{{ alloy_swarm_file }}"
+    mode: "0664"
+    owner: root
+    group: "{{ docker_host_services_group }}"
+    backup: true
+  become: true
+
+- name: Install pip for Python3
+  ansible.builtin.package:
+    name: python3-pip
+    state: present
+  become: true
+
+- name: Install jsondiff dependency for docker_stack module
+  ansible.builtin.pip:
+    name: jsondiff
+    state: present
+    extra_args: --break-system-packages
+  become: true
+
+- name: Deploy Alloy stack (Swarm mode)
+  community.docker.docker_stack:
+    name: alloy
+    compose:
+      - "{{ alloy_swarm_file }}"
+    state: present
+  run_once: true
+  delegate_to: "{{ docker_swarm_manager | default(inventory_hostname) }}"
+
+- name: Verify Alloy services are running
+  ansible.builtin.command:
+    cmd: "docker stack services alloy"
+  become: true
+  register: alloy_services
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ docker_swarm_manager | default(inventory_hostname) }}"
+
+- name: Display Alloy status
+  ansible.builtin.debug:
+    msg: |
+      Alloy deployment completed!
+
+      Services:
+      {{ alloy_services.stdout }}
+
+      Loki enabled: {{ alloy_loki_enabled }}
+      Metrics enabled: {{ alloy_metrics_enabled }}
+      Traefik logs: {{ alloy_traefik_logs_enabled and alloy_traefik_log_path | length > 0 }}
+  run_once: true

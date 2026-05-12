@@ -1,0 +1,95 @@
+---
+- name: Configure relay host specific settings
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/main.cf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    state: present
+    create: false
+  loop:
+    - { key: "relayhost", value: "[{{ smtp_external_relayhost }}]:{{ smtp_external_relayhost_port }}" }
+    - { key: "inet_interfaces", value: "all" }
+    - { key: "relay_domains", value: "{{ smtp_relay_domains | join(',') }}" }
+    - { key: "mydestination", value: "$myhostname, localhost.$mydomain, localhost" }
+  notify:
+    - Restart postfix
+  tags:
+    - smtp_configure
+
+- name: Create SASL password file for external relay authentication
+  ansible.builtin.template:
+    src: sasl_passwd.j2
+    dest: /etc/postfix/sasl_passwd
+    mode: "0600"
+    owner: root
+    group: root
+    backup: true
+  when:
+    - smtp_sasl_auth_enable
+    - smtp_sasl_user | length > 0
+    - smtp_sasl_password | length > 0
+  notify:
+    - Postmap sasl_passwd
+    - Restart postfix
+  tags:
+    - smtp_configure
+
+- name: Deploy relay host configuration files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+    backup: true
+  loop: "{{ smtp_relay_config_files }}"
+  notify:
+    - Restart postfix
+  tags:
+    - smtp_configure
+
+- name: Configure relay host security restrictions
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/main.cf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    state: present
+    create: false
+  loop:
+    - key: "smtpd_client_restrictions"
+      value: "permit_mynetworks, reject_unauth_pipelining, reject_unknown_client_hostname"
+    - key: "smtpd_helo_restrictions"
+      value: "permit_mynetworks, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname"
+    - key: "smtpd_sender_restrictions"
+      value: "permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain"
+    - key: "smtpd_relay_restrictions"
+      value: "permit_mynetworks, reject_unauth_destination"
+    - key: "smtpd_recipient_restrictions"
+      value: "permit_mynetworks, reject_non_fqdn_recipient, reject_unknown_recipient_domain, reject_unauth_destination, reject_unlisted_recipient"
+  notify:
+    - Restart postfix
+  tags:
+    - smtp_configure
+
+- name: Verify relay host configuration
+  ansible.builtin.shell: |
+    echo "=== Relay Host Configuration ==="
+    postconf relayhost inet_interfaces relay_domains
+    {% if smtp_external_relayhost | length > 0 %}
+    echo "=== Testing External Relay Connectivity ==="
+    timeout 5 bash -c "</dev/tcp/{{ smtp_external_relayhost }}/{{ smtp_external_relayhost_port }}" \
+      && echo "✅ External relay reachable" || echo "❌ External relay not reachable"
+    {% endif %}
+    echo "=== Checking SASL Configuration ==="
+    {% if smtp_sasl_auth_enable and smtp_sasl_user | length > 0 %}
+    echo "✅ SASL authentication configured"
+    {% else %}
+    echo "ℹ️  SASL authentication not configured"
+    {% endif %}
+  args:
+    executable: /bin/bash
+  register: smtp_relayhost_test
+  changed_when: false
+  failed_when: false
+  tags:
+    - smtp_relayhost

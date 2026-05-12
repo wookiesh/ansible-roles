@@ -1,0 +1,105 @@
+---
+# Validate all required variables and system requirements
+- name: Check if GlusterFS is enabled
+  ansible.builtin.debug:
+    msg: "🔧 GlusterFS is disabled - skipping validation and configuration"
+  when: not glusterfs_enabled
+
+- name: Set network configuration
+  ansible.builtin.set_fact:
+    glusterfs_bind_address: "{{ hostvars[inventory_hostname]['ansible_' + glusterfs_bind_interface]['ipv4']['address'] }}"
+  when:
+    - glusterfs_enabled
+    - glusterfs_group_name != ""
+
+- name: Set replica count dynamically
+  ansible.builtin.set_fact:
+    glusterfs_replica_count: "{{ groups[glusterfs_group_name] | length }}"
+  when:
+    - glusterfs_enabled
+    - glusterfs_replica_count == 3 # Only override default value
+    - glusterfs_group_name != ""
+  run_once: true
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - glusterfs_enabled is defined
+      - glusterfs_cluster_name is defined
+      - glusterfs_cluster_name | length > 0
+      - glusterfs_volume_name is defined
+      - glusterfs_volume_name | length > 0
+      - glusterfs_brick_dir is defined
+      - glusterfs_brick_dir | length > 0
+      - glusterfs_mount_dir is defined
+      - glusterfs_mount_dir | length > 0
+      - glusterfs_replica_count is defined
+      - glusterfs_replica_count is number
+      - glusterfs_replica_count > 0
+      - glusterfs_group_name is defined
+      - glusterfs_group_name | length > 0
+      - glusterfs_bind_address is defined
+      - glusterfs_bind_address | length > 0
+    fail_msg: |
+      ❌ Invalid GlusterFS configuration:
+      - glusterfs_enabled: {{ glusterfs_enabled | default('UNDEFINED') }}
+      - glusterfs_cluster_name: {{ glusterfs_cluster_name | default('UNDEFINED') }}
+      - glusterfs_volume_name: {{ glusterfs_volume_name | default('UNDEFINED') }}
+      - glusterfs_brick_dir: {{ glusterfs_brick_dir | default('UNDEFINED') }}
+      - glusterfs_mount_dir: {{ glusterfs_mount_dir | default('UNDEFINED') }}
+      - glusterfs_replica_count: {{ glusterfs_replica_count | default('UNDEFINED') }}
+      - glusterfs_group_name: {{ glusterfs_group_name | default('UNDEFINED') }}
+      - glusterfs_bind_address: {{ glusterfs_bind_address | default('UNDEFINED') }}
+
+      Required: All variables must be defined with valid values
+    success_msg: "✅ All GlusterFS variables validated successfully"
+  when: glusterfs_enabled
+
+- name: Validate cluster size
+  ansible.builtin.assert:
+    that:
+      - glusterfs_group_name != ""
+      - groups[glusterfs_group_name] is defined
+      - groups[glusterfs_group_name] | length >= 2
+      - groups[glusterfs_group_name] | length >= glusterfs_replica_count
+    fail_msg: |
+      ❌ Invalid cluster configuration:
+      - glusterfs_group_name: {{ glusterfs_group_name | default('UNDEFINED') }}
+      - Group '{{ glusterfs_group_name }}' has {{ groups[glusterfs_group_name] | default([]) | length }} nodes
+      - Required minimum: 2 nodes for replica mode
+      - Replica count: {{ glusterfs_replica_count }}
+
+      Please set glusterfs_group_name in your group_vars
+    success_msg: "✅ Cluster size validated - {{ groups[glusterfs_group_name] | length }} nodes available"
+  when: glusterfs_enabled
+
+- name: Validate system requirements
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "Debian"
+      - ansible_distribution_major_version | int >= 10
+      - ansible_memtotal_mb >= 2048
+      - ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first > 10737418240
+    fail_msg: |
+      ❌ System requirements not met:
+      - OS: {{ ansible_distribution }} {{ ansible_distribution_version }} (requires Debian 10+ or Ubuntu 20.04+)
+      - Memory: {{ ansible_memtotal_mb }}MB (requires minimum 2048MB)
+      - Disk space: Insufficient space on root partition (requires minimum 10GB)
+
+      Please ensure system meets minimum requirements for GlusterFS
+    success_msg: "✅ System requirements validated"
+  when: glusterfs_enabled
+
+- name: Display cluster information
+  ansible.builtin.debug:
+    msg: |
+      🚀 GlusterFS Cluster Configuration:
+      - Cluster Name: {{ glusterfs_cluster_name }}
+      - Volume Name: {{ glusterfs_volume_name }}
+      - Replica Count: {{ glusterfs_replica_count }}
+      - Group: {{ glusterfs_group_name }}
+      - Cluster Nodes: {{ groups[glusterfs_group_name] | length }}
+      - Current Node: {{ inventory_hostname }} ({{ glusterfs_bind_address }})
+      - Brick Directory: {{ glusterfs_brick_dir }}
+      - Mount Directory: {{ glusterfs_mount_dir }}
+  when: glusterfs_enabled

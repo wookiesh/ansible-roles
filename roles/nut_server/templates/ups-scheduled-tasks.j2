@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Script triggered by upssched to handle UPS events.
+# Sends email notifications and triggers remote commands via SSH if configured.
+
+send_notification() {
+  local subject="$1"
+  local body="$2"
+  printf "%s\n" "$body" | mail -s "$subject" root
+}
+
+case "$1" in
+  onbatt)
+    send_notification "$Power Failure on UPS ${UPSNAME}" "⚠️ Warning: UPS ${UPSNAME} experienced a power failure and is now running on battery."
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_onbatt }}" || true
+    {% endfor %}
+    ;;
+  online)
+    send_notification "Power restored on UPS ${UPSNAME}" "✅ Power on UPS ${UPSNAME} has been restored."
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_online }}" || true
+    {% endfor %}
+    ;;
+  lowbatt)
+    send_notification "Low battery on UPS ${UPSNAME}" "⚠️ Warning: UPS ${UPSNAME} is low on battery! All connected Systems will be shut down soon."
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_lowbatt }}" || true
+    {% endfor %}
+    ;;
+  fsd)
+    send_notification "Forced shutdown from UPS ${UPSNAME}" "⚠️ Warning: All Systems connected to UPS ${UPSNAME} will be shut down now!"
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_fsd }}" || true
+    {% endfor %}
+    ;;
+  commok)
+    send_notification "Communications restored with UPS ${UPSNAME}" "✅ Communications with UPS ${UPSNAME} have been restored."
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_commok }}" || true
+    {% endfor %}
+    ;;
+  commbad)
+    send_notification "Lost communication with UPS ${UPSNAME}" "⚠️ Warning: Communication with UPS ${UPSNAME} has been lost."
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_commbad }}" || true
+    {% endfor %}
+    ;;
+  shutdown)
+    send_notification "System $HOST is shutting down now!" "⚠️ Warning: System $HOST is shutting down now!"
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_shutdown }}" || true
+    {% endfor %}
+    ;;
+  replbatt)
+    send_notification "Replace battery on UPS ${UPSNAME}" "⚠️ Warning: The UPS ${UPSNAME} needs to have its battery replaced."
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_replbatt }}" || true
+    {% endfor %}
+    ;;
+  nocomm)
+    send_notification "The UPS ${UPSNAME} cannot be contacted" "⚠️ Warning: The UPS ${UPSNAME} can’t be contacted for monitoring!"
+    {% for device in nut_server_satellite_device %}
+    ssh {{ device.host }} -l {{ device.user }} -i {{ device.ssh_key }} "{{ device.remote_cmd_nocomm }}" || true
+    {% endfor %}
+    ;;
+  *)
+    logger -t ups-scheduled-tasks "Unrecognized event: $1"
+    ;;
+esac

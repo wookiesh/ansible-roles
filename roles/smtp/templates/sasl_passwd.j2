@@ -1,0 +1,5 @@
+# Managed by Ansible - SASL Password Configuration
+# Format: [relayhost]:port username:password
+{% if smtp_external_relayhost | length > 0 and smtp_sasl_user | length > 0 and smtp_sasl_password | length > 0 %}
+[{{ smtp_external_relayhost }}]:{{ smtp_external_relayhost_port }} {{ smtp_sasl_user }}:{{ smtp_sasl_password }}
+{% endif %}

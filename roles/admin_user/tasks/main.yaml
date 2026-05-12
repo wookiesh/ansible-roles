@@ -1,0 +1,72 @@
+---
+- name: Skip if admin_user is disabled
+  ansible.builtin.meta: end_host
+  when: not admin_user_enabled
+
+- name: Fail if required variables are not set
+  ansible.builtin.fail:
+    msg: "{{ item.var }} must be set — define it in inventory or group_vars"
+  when: item.value | length == 0
+  loop:
+    - { var: admin_user_name, value: "{{ admin_user_name }}" }
+    - { var: admin_user_ssh_key, value: "{{ admin_user_ssh_key }}" }
+    - { var: admin_user_password_hash, value: "{{ admin_user_password_hash }}" }
+
+- name: Set OS-specific packages variable
+  ansible.builtin.set_fact:
+    admin_user_packages: "{{ admin_user_packages_debian }}"
+  when: ansible_os_family == "Debian"
+
+- name: Set OS-specific packages variable (RedHat)
+  ansible.builtin.set_fact:
+    admin_user_packages: "{{ admin_user_packages_redhat }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Set OS-specific packages variable (Arch)
+  ansible.builtin.set_fact:
+    admin_user_packages: "{{ admin_user_packages_arch }}"
+  when: ansible_os_family == "Archlinux"
+
+- name: Check for interrupted dpkg
+  ansible.builtin.command: dpkg --configure -a
+  register: admin_user_dpkg_configure
+  failed_when: false
+  changed_when: admin_user_dpkg_configure.rc != 0
+  when: ansible_os_family == "Debian"
+
+- name: Wait for apt locks to be released
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      sleep 2
+    done
+  changed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: Ensure the required packages are installed
+  ansible.builtin.package:
+    name: "{{ admin_user_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: admin_user_packages is defined
+
+- name: Create admin user and grant sudo access
+  become: true
+  ansible.builtin.user:
+    name: "{{ admin_user_name }}"
+    groups: "{{ admin_user_groups }}"
+    append: true
+    shell: "{{ admin_user_shell }}"
+    create_home: true
+    password: "{{ admin_user_password_hash }}"
+- name: Ensure user group exists
+  ansible.builtin.group:
+    name: "{{ admin_user_name }}"
+    state: present
+
+- name: "Set up SSH authorized key for {{ admin_user_name }}"
+  ansible.posix.authorized_key:
+    user: "{{ admin_user_name }}"
+    key: "{{ admin_user_ssh_key }}"
+    state: present
+  when: not ansible_check_mode

@@ -1,0 +1,50 @@
+#
+# Network UPS Tools - upssched.conf file
+#
+
+# The command script to run
+CMDSCRIPT /usr/local/bin/ups-scheduled-tasks
+
+# Command pipe and lock-file
+PIPEFN /run/nut/upssched.pipe
+LOCKFN /run/nut/upssched.lock
+
+{% for ups in nut_server_ups_list %}
+# Event handlers for {{ ups.name }}
+# The UPS is back on line.
+# Cancel any running "On Battery" timer, then execute the "Online" command.
+AT ONLINE {{ ups.name }}@localhost CANCEL-TIMER onbatt online
+
+# The UPS is on battery.
+# Start a 10 seconds timer, then execute the "On Battery" command.
+AT ONBATT {{ ups.name }}@localhost START-TIMER onbatt 10
+
+# The UPS battery is low (as determined by the driver).
+# Execute the "Low Battery" command immediately.
+AT LOWBATT {{ ups.name }}@localhost EXECUTE lowbatt
+
+# The UPS has been commanded into the "Forced Shutdown" mode.
+# Execute the "Forced Shutdown" command immediately.
+AT FSD {{ ups.name }}@localhost EXECUTE fsd
+
+# Communication with the UPS has been established.
+# Cancel any running "Communications Lost" timer, then execute the
+# "Communications Restored" command.
+AT COMMOK {{ ups.name }}@localhost CANCEL-TIMER commbad commok
+
+# Communication with the UPS was just lost.
+# Start a 15 seconds timer, then execute the "Communications Lost" command.
+AT COMMBAD {{ ups.name }}@localhost START-TIMER commbad 15
+
+# The local system is being shut down.
+# Execute the "Notify Shutdown" command immediately.
+AT SHUTDOWN {{ ups.name }}@localhost EXECUTE shutdown
+
+# The UPS needs to have its battery replaced.
+# Start a 5 minutes timer, then execute the "Replace Battery" command.
+AT REPLBATT {{ ups.name }}@localhost START-TIMER replbatt 300
+
+# The UPS can’t be contacted for monitoring.
+# Start a 15 seconds timer, then execute the "No Communications" command.
+AT NOCOMM {{ ups.name }}@localhost START-TIMER nocomm 15
+{% endfor %}

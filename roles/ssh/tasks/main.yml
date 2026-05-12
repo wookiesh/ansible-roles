@@ -1,0 +1,13 @@
+---
+- name: Install and configure SSH server
+  ansible.builtin.import_tasks: server.yml
+  when: ssh_install_server
+
+- name: Configure SSH client
+  ansible.builtin.import_tasks: client.yml
+  become: false
+  when: ssh_configure_client
+
+- name: Validate SSH configuration
+  ansible.builtin.import_tasks: validate.yml
+  when: ssh_install_server

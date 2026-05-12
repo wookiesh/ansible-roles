@@ -1,0 +1,88 @@
+---
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+    system: true
+  become: true
+
+- name: Add admin user to docker group
+  ansible.builtin.user:
+    name: "{{ docker_host_user }}"
+    groups: docker
+    append: true
+  become: true
+  when:
+    - docker_host_add_user_to_group
+    - docker_host_user is defined
+
+- name: Add additional users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  become: true
+  loop: "{{ docker_host_group_members }}"
+  when: docker_host_group_members | length > 0
+  loop_control:
+    label: "{{ item }}"
+
+- name: Verify docker group membership
+  ansible.builtin.command: "groups {{ docker_host_user }}"
+  register: docker_host_user_groups
+  changed_when: false
+  failed_when: false
+  when:
+    - docker_host_add_user_to_group
+    - docker_host_user is defined
+
+- name: Assert user is in docker group
+  ansible.builtin.assert:
+    that:
+      - docker_host_user_groups.rc == 0
+      - "'docker' in docker_host_user_groups.stdout"
+    fail_msg: "User {{ docker_host_user }} is not in docker group or groups command failed"
+    success_msg: "User {{ docker_host_user }} successfully added to docker group"
+  when:
+    - docker_host_add_user_to_group
+    - docker_host_user is defined
+    - not ansible_check_mode
+
+- name: Display security warning about docker group
+  ansible.builtin.debug:
+    msg: |
+      ⚠️  SECURITY WARNING: Users in the docker group have root equivalent access to the host.
+      Only add trusted users to this group.
+      Consider using rootless Docker for production environments.
+      More info: https://docs.docker.com/engine/security/rootless/
+  when: docker_host_add_user_to_group
+
+- name: Display group membership notice
+  ansible.builtin.debug:
+    msg: |
+      📝 NOTE: User {{ docker_host_user }} has been added to the docker group.
+      You must log out and log back in (or run 'newgrp docker') for the changes to take effect.
+      Current groups: {{ docker_host_user_groups.stdout | default('Unable to determine groups') }}
+  when:
+    - docker_host_add_user_to_group
+    - docker_host_user is defined
+    - docker_host_user_groups is defined
+
+- name: Create docker config directory for user
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.docker"
+    state: directory
+    mode: "0755"
+    owner: "{{ docker_host_user }}"
+    group: "{{ docker_host_user }}"
+  become: true
+  when: docker_host_user is defined
+
+- name: Set up Docker daemon socket permissions
+  ansible.builtin.file:
+    path: /var/run/docker.sock
+    mode: "0660"
+    owner: root
+    group: docker
+  become: true
+  notify: Restart Docker daemon

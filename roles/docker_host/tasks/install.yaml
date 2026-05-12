@@ -1,0 +1,142 @@
+---
+- name: Check if Docker management is enabled
+  ansible.builtin.fail:
+    msg: "Docker management is disabled on this host"
+  when: not docker_host_enabled
+
+- name: Check if host should have Docker
+  ansible.builtin.fail:
+    msg: "This host is not configured for Docker setup"
+  when: not docker_host_enabled
+
+- name: Check for existing Docker installation
+  ansible.builtin.command: docker --version
+  register: docker_host_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Get current Docker version
+  ansible.builtin.shell: docker --version | awk '{print $3}' | sed 's/,//'
+  register: docker_host_current_version
+  changed_when: false
+  when: docker_host_check.rc == 0
+  ignore_errors: true
+
+- name: Parse Docker versions for comparison
+  ansible.builtin.set_fact:
+    docker_host_current_version_parsed: "{{ docker_host_current_version.stdout | regex_replace('^v', '') | default('') }}"
+    docker_host_target_version: "{{ docker_host_version | regex_replace('^v', '') }}"
+
+- name: Determine if Docker needs installation/update
+  ansible.builtin.set_fact:
+    docker_host_needs_install: "{{ docker_host_check.rc != 0 }}"
+    docker_host_needs_update: >-
+      {{ docker_host_check.rc == 0 and docker_host_version != 'latest' and
+         docker_host_current_version_parsed != docker_host_target_version and
+         docker_host_current_version_parsed != '' }}
+    docker_host_should_install: >-
+      {{ docker_host_check.rc != 0 or (docker_host_auto_update and docker_host_version != 'latest' and
+         docker_host_current_version_parsed != docker_host_target_version) }}
+
+- name: Check for running containers before installation
+  ansible.builtin.shell: docker ps -q
+  register: docker_host_running_containers
+  ignore_errors: true
+  changed_when: false
+  when: docker_host_check.rc == 0
+
+- name: Warn about running containers
+  ansible.builtin.debug:
+    msg: |
+      WARNING: {{ docker_host_running_containers.stdout_lines | length }} containers are currently running.
+      Docker installation may restart the daemon and affect these containers.
+      Consider stopping them manually before proceeding if needed.
+  when:
+    - docker_host_check.rc == 0
+    - docker_host_running_containers.stdout_lines | length > 0
+    - docker_host_should_install
+
+- name: Display Docker installation status
+  ansible.builtin.debug:
+    msg: |
+      Docker Status Analysis:
+      - Docker installed: {{ docker_host_check.rc == 0 }}
+      - Current version: {{ docker_host_current_version_parsed | default('N/A') }}
+       - Target version: {{ docker_host_target_version }}
+       - Needs installation: {{ docker_host_needs_install }}
+       - Needs update: {{ docker_host_needs_update }}
+       - Auto-update enabled: {{ docker_host_auto_update }}
+       - Should install/update: {{ docker_host_should_install }}
+      - Running containers: {{ running_containers.stdout_lines | length | default(0) }}
+  when: docker_host_check.rc == 0 or docker_host_should_install
+
+- name: Download Docker installation script
+  ansible.builtin.get_url:
+    url: "{{ docker_host_install_script_url }}"
+    dest: "{{ docker_host_install_script_path }}"
+    mode: "0755"
+  become: true
+  when:
+    - docker_host_install_method == "script"
+    - docker_host_should_install
+
+- name: Preview Docker installation script (dry run)
+  ansible.builtin.shell:
+    cmd: "{{ docker_host_install_script_path }} --dry-run"
+  become: true
+  register: docker_host_script_dry_run
+  when:
+    - docker_host_install_method == "script"
+    - docker_host_install_script_dry_run
+  changed_when: false
+
+- name: Display dry run output
+  ansible.builtin.debug:
+    var: docker_host_script_dry_run.stdout_lines
+  when:
+    - docker_host_install_method == "script"
+    - docker_host_install_script_dry_run
+
+- name: Run Docker installation script
+  ansible.builtin.shell:
+    cmd: "{{ docker_host_install_script_path }}"
+  become: true
+  register: docker_host_script_install
+  when:
+    - docker_host_install_method == "script"
+    - docker_host_should_install
+    - not (docker_host_skip_update_if_running and docker_host_needs_update and docker_host_running_containers.stdout_lines | length > 0)
+
+- name: Clean up installation script
+  ansible.builtin.file:
+    path: "{{ docker_host_install_script_path }}"
+    state: absent
+  become: true
+  when:
+    - docker_host_install_method == "script"
+    - docker_host_should_install
+
+- name: Verify Docker installation
+  ansible.builtin.command: docker --version
+  register: docker_host_verify
+  changed_when: false
+
+- name: Assert Docker installation success
+  ansible.builtin.assert:
+    that:
+      - docker_host_verify.rc == 0
+    fail_msg: "Docker installation failed"
+    success_msg: "Docker installed successfully: {{ docker_host_verify.stdout }}"
+  when:
+    - docker_host_should_install
+    - not ansible_check_mode
+
+- name: Display Docker status after installation check
+  ansible.builtin.debug:
+    msg: |
+      ✅ Docker installation check completed:
+       - Docker is installed and working: {{ docker_host_verify.rc == 0 }}
+       - Version: {{ docker_host_verify.stdout }}
+       - Installation performed: {{ docker_host_should_install }}
+       - No action needed: {{ not docker_host_should_install }}
+  when: docker_host_verify is defined

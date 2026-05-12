@@ -1,0 +1,178 @@
+---
+# Phase 1: Initialize Swarm on first manager (only on first manager)
+- name: Initialize Swarm on first manager
+  community.docker.docker_swarm:
+    state: present
+    advertise_addr: "{{ docker_host_swarm_advertise_addr }}"
+    listen_addr: "{{ docker_host_swarm_listen_addr }}"
+    default_addr_pool: "{{ docker_host_swarm_default_addr_pool }}"
+    subnet_size: "{{ docker_host_swarm_subnet_size }}"
+    data_path_port: "{{ docker_host_swarm_data_path_port }}"
+  register: docker_host_swarm_init_result
+  when:
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+    - docker_host_swarm_info.swarm_facts is not defined
+
+# Phase 2: Wait for Swarm initialization to complete (all hosts wait)
+- name: Wait for Swarm manager to be fully stable
+  ansible.builtin.pause:
+    seconds: 5
+  when:
+    - docker_host_swarm_enabled
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+    - docker_host_swarm_init_result is defined
+    - docker_host_swarm_init_result.changed
+
+- name: Verify Swarm manager is stable before proceeding
+  community.docker.docker_swarm_info:
+  register: docker_host_swarm_stability_check
+  retries: 10
+  delay: 5
+  until:
+    - docker_host_swarm_stability_check.swarm_facts is defined
+    - docker_host_swarm_stability_check.swarm_facts.ID is defined
+  when:
+    - docker_host_swarm_enabled
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+    - docker_host_swarm_init_result is defined
+    - docker_host_swarm_init_result.changed
+
+# Phase 3: Verify Swarm is ready and get tokens (first manager only)
+- name: Verify Swarm is ready and get tokens
+  community.docker.docker_swarm_info:
+  register: docker_host_swarm_tokens
+  retries: 5
+  delay: 3
+  until: docker_host_swarm_tokens.swarm_facts is defined
+  when:
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+    - docker_host_swarm_init_result is defined
+    - docker_host_swarm_init_result.changed
+
+# Phase 3.5: Apply advanced Swarm configuration after stability
+- name: Apply advanced Swarm configuration to manager
+  community.docker.docker_node:
+    hostname: "{{ inventory_hostname }}"
+    availability: active
+  register: docker_host_advanced_config_result
+  when:
+    - docker_host_swarm_enabled
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+    - docker_host_swarm_tokens.swarm_facts is defined
+    - docker_host_swarm_tokens.swarm_facts.ID is defined
+  retries: 3
+  delay: 5
+
+- name: Display Swarm initialization result
+  ansible.builtin.debug:
+    msg: |
+      🚀 Swarm initialized on {{ inventory_hostname }}:
+      {{ docker_host_swarm_init_result | to_nice_yaml }}
+  when:
+    - docker_host_swarm_init_result is defined
+    - docker_host_swarm_init_result.changed
+
+- name: Set Swarm tokens as facts for all hosts
+  ansible.builtin.set_fact:
+    docker_host_swarm_manager_token: >-
+      {{ docker_host_swarm_tokens['swarm_facts']['JoinTokens']['Manager'] }}
+    docker_host_swarm_worker_token: >-
+      {{ docker_host_swarm_tokens['swarm_facts']['JoinTokens']['Worker'] }}
+    cacheable: true
+  when:
+    - docker_host_swarm_enabled
+    - docker_host_swarm_tokens.swarm_facts is defined
+    - swarm_group != 'unknown'
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups[swarm_group] | default([]) }}"
+  run_once: true
+  vars:
+    swarm_group: "{{ group_names | select('match', '^swarm_') | first | default('unknown') }}"
+
+# Phase 3.6: Share stability check with all hosts
+- name: Share stability check with all hosts
+  ansible.builtin.set_fact:
+    docker_host_swarm_stability_check_shared: "{{ docker_host_swarm_stability_check }}"
+    cacheable: true
+  when:
+    - docker_host_swarm_stability_check is defined
+    - swarm_group != 'unknown'
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups[swarm_group] | default([]) }}"
+  run_once: true
+  vars:
+    swarm_group: "{{ group_names | select('match', '^swarm_') | first | default('unknown') }}"
+
+# Phase 4: Join additional managers to Swarm (wait for initialization)
+- name: Wait for Swarm initialization before joining managers
+  ansible.builtin.pause:
+    seconds: 20
+  when:
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname != docker_swarm_manager
+    - docker_host_swarm_info.swarm_facts is not defined
+    - docker_host_swarm_stability_check_shared is defined
+
+- name: Join additional managers to Swarm
+  community.docker.docker_swarm:
+    state: join
+    join_token: "{{ docker_host_swarm_manager_token }}"
+    advertise_addr: "{{ docker_host_swarm_advertise_addr }}"
+    listen_addr: "{{ docker_host_swarm_listen_addr }}"
+    remote_addrs:
+      - "{{ hostvars[docker_swarm_manager]['docker_host_swarm_advertise_addr'] | default(hostvars[docker_swarm_manager]['ansible_host']) }}"
+  register: docker_host_swarm_manager_join_result
+  retries: 3
+  delay: 5
+  until: docker_host_swarm_manager_join_result is succeeded
+  when:
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname != docker_swarm_manager
+    - docker_host_swarm_info.swarm_facts is not defined
+    - docker_host_swarm_manager_token is defined
+    - docker_host_swarm_stability_check_shared is defined
+
+# Phase 5: Join workers to Swarm (wait for initialization)
+- name: Wait for Swarm initialization before joining workers
+  ansible.builtin.pause:
+    seconds: 30
+  when:
+    - docker_host_swarm_role == "worker"
+    - docker_host_swarm_info.swarm_facts is not defined
+    - docker_host_swarm_stability_check_shared is defined
+
+- name: Join workers to Swarm
+  community.docker.docker_swarm:
+    state: join
+    join_token: "{{ docker_host_swarm_worker_token }}"
+    advertise_addr: "{{ docker_host_swarm_advertise_addr }}"
+    listen_addr: "{{ docker_host_swarm_listen_addr }}"
+    remote_addrs:
+      - "{{ hostvars[docker_swarm_manager]['docker_host_swarm_advertise_addr'] | default(hostvars[docker_swarm_manager]['ansible_host']) }}"
+  register: docker_host_swarm_worker_join_result
+  retries: 3
+  delay: 5
+  until: docker_host_swarm_worker_join_result is succeeded
+  when:
+    - docker_host_swarm_role == "worker"
+    - docker_host_swarm_info.swarm_facts is not defined
+    - docker_host_swarm_worker_token is defined
+    - docker_host_swarm_stability_check_shared is defined
+
+- name: Display join results
+  ansible.builtin.debug:
+    msg: |
+      📋 Swarm join result for {{ inventory_hostname }}:
+      Role: {{ docker_host_swarm_role }}
+      {{ (docker_host_swarm_manager_join_result | default({})) | to_nice_yaml if docker_host_swarm_role == 'manager' else
+         (docker_host_swarm_worker_join_result | default({})) | to_nice_yaml }}
+  when: >
+    (docker_host_swarm_manager_join_result is defined and docker_host_swarm_manager_join_result.changed) or
+    (docker_host_swarm_worker_join_result is defined and docker_host_swarm_worker_join_result.changed)

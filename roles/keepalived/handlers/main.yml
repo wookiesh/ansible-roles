@@ -1,0 +1,131 @@
+---
+# Keepalived role handlers
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart keepalived
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    state: restarted
+  become: true
+
+- name: Reload keepalived
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    state: reloaded
+  become: true
+
+- name: Start keepalived
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    state: started
+  become: true
+
+- name: Stop keepalived
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    state: stopped
+  become: true
+
+- name: Enable keepalived
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    enabled: true
+  become: true
+
+- name: Disable keepalived
+  ansible.builtin.systemd:
+    name: "{{ keepalived_service_name }}"
+    enabled: false
+  become: true
+
+- name: Restart network
+  ansible.builtin.systemd:
+    name: NetworkManager
+    state: restarted
+  become: true
+  when: ansible_os_family == "RedHat" and "'NetworkManager' in ansible_facts.services"
+
+- name: Restart networking
+  ansible.builtin.systemd:
+    name: networking
+    state: restarted
+  become: true
+  when: ansible_os_family == "Debian" and "'networking' in ansible_facts.services"
+
+- name: Reload sysctl
+  ansible.builtin.command:
+    cmd: "sysctl --system"
+  become: true
+
+- name: Restart firewall
+  ansible.builtin.systemd:
+    name: firewalld
+    state: restarted
+  become: true
+  when: ansible_os_family == "RedHat" and "'firewalld' in ansible_facts.services"
+
+- name: Reload ufw
+  ansible.builtin.command:
+    cmd: "ufw --reload"
+  become: true
+  when: ansible_os_family == "Debian" and "'ufw' in ansible_facts.packages"
+
+- name: Flush ip routes
+  ansible.builtin.command:
+    cmd: "ip route flush cache"
+  become: true
+
+- name: Send notification email
+  ansible.builtin.mail:
+    to: "{{ item }}"
+    subject: "Keepalived Notification - {{ ansible_fqdn }}"
+    body: |
+      Keepalived state change detected on {{ ansible_fqdn }}
+
+      Host: {{ ansible_fqdn }}
+      Timestamp: {{ ansible_date_time.iso8601 }}
+      Service: {{ keepalived_service_name }}
+
+      This is an automated notification from Ansible.
+  loop: "{{ keepalived_email_to }}"
+  when:
+    - keepalived_email_enabled
+    - keepalived_email_to | length > 0
+  delegate_to: localhost
+  failed_when: false
+
+- name: Run custom notification script
+  ansible.builtin.command:
+    cmd: "{{ item.script }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  when:
+    - keepalived_notify_scripts | length > 0
+    - item.script is defined
+  failed_when: false
+
+- name: Reload nftables
+  ansible.builtin.command:
+    cmd: nft --file /etc/nftables.conf
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '>=')
+  listen: "reload nftables"
+
+- name: Reload iptables
+  ansible.builtin.command:
+    cmd: iptables-restore < /etc/iptables/rules.v4
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '<')
+  listen: "reload iptables"
+
+- name: Reload iptables-legacy
+  ansible.builtin.command:
+    cmd: iptables-legacy-restore < /etc/iptables/rules.v4
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '>=')
+  listen: "reload iptables"
+
+- name: Reload nftables
+  ansible.builtin.command:
+    cmd: nft --file /etc/nftables.conf
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '>=')
+  listen: "reload nftables"

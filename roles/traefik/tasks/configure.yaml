@@ -1,0 +1,171 @@
+---
+- name: Create Traefik Docker Compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ traefik_compose_file }}"
+    mode: "0664"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+    backup: true
+  become: true
+  notify: Restart Traefik
+  when: traefik_deployment_mode == "compose"
+
+- name: Create Traefik Swarm stack file
+  ansible.builtin.template:
+    src: swarm.yaml.j2
+    dest: "{{ traefik_swarm_file }}"
+    mode: "0664"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+    backup: true
+  become: true
+  when: traefik_deployment_mode == "swarm"
+
+- name: Create Traefik static configuration
+  ansible.builtin.template:
+    src: static.yaml.j2
+    dest: "{{ traefik_config_dir }}/static.yaml"
+    mode: "0664"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+    backup: true
+  become: true
+  notify: Restart Traefik
+
+- name: Create Traefik dynamic configuration
+  ansible.builtin.template:
+    src: dynamic.yaml.j2
+    dest: "{{ traefik_config_dir }}/dynamic/dynamic.yaml"
+    mode: "0664"
+    owner: root
+    group: "{{ traefik_docker_services_group }}"
+    backup: true
+  become: true
+  notify: Restart Traefik
+
+- name: Configure logrotate for Traefik access logs
+  ansible.builtin.template:
+    src: logrotate.j2
+    dest: /etc/logrotate.d/traefik
+    mode: "0644"
+    owner: root
+    group: root
+  become: true
+  when: traefik_access_log_path | length > 0
+
+- name: Deploy Traefik stack (Compose mode)
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ traefik_compose_file }} up -d"
+  become: true
+  register: traefik_deploy
+  changed_when: "'is up-to-date' not in traefik_deploy.stderr"
+  when: traefik_deployment_mode == "compose"
+
+- name: Install pip for Python3
+  ansible.builtin.package:
+    name: python3-pip
+    state: present
+  become: true
+  when: traefik_deployment_mode == "swarm"
+
+- name: Install jsondiff dependency for docker_stack module
+  ansible.builtin.pip:
+    name: jsondiff
+    state: present
+    extra_args: --break-system-packages
+  become: true
+  when: traefik_deployment_mode == "swarm"
+
+- name: Deploy Traefik stack (Swarm mode)
+  community.docker.docker_stack:
+    name: traefik
+    compose:
+      - "{{ traefik_swarm_file }}"
+    state: present
+  register: traefik_swarm_deploy
+  when: traefik_deployment_mode == "swarm"
+
+- name: Wait for Traefik to be ready (Compose mode)
+  ansible.builtin.uri:
+    url: "http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}/ping"
+    method: GET
+    status_code: [200, 404]
+  register: traefik_health_swarm
+  retries: 15
+  delay: 10
+  until: traefik_health_swarm.status in [200, 404]
+  when:
+    - traefik_deployment_mode == "swarm"
+    - traefik_static_config.ping | default(false)
+
+- name: Verify Traefik containers are running (Compose mode)
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ traefik_compose_file }} ps"
+  become: true
+  register: traefik_containers
+  changed_when: false
+  when: traefik_deployment_mode == "compose"
+
+- name: Verify Traefik services are running (Swarm mode)
+  ansible.builtin.command:
+    cmd: "docker stack services traefik"
+  become: true
+  register: traefik_services
+  changed_when: false
+  when: traefik_deployment_mode == "swarm"
+
+- name: Display Traefik status
+  ansible.builtin.debug:
+    msg: |
+      🚀 Traefik deployment completed successfully!
+
+      Configuration:
+      - Mode: {{ traefik_deployment_mode }}
+      - Dashboard: https://{{ traefik_domain }}
+      - Whoami test: https://{{ traefik_whoami_domain }}
+      - Metrics: http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}
+      - Network: {{ traefik_network_name }} ({{ traefik_network_driver }})
+
+      {% if traefik_deployment_mode == "compose" %}
+      Container status:
+      {{ traefik_containers.stdout }}
+      {% else %}
+      Services status:
+      {{ traefik_services.stdout }}
+      {% endif %}
+
+      Next steps:
+      - Configure your DNS records to point to this host
+      - Add your services to the {{ traefik_network_name }} network
+      - Use Traefik labels in your Docker Compose files
+      {% if traefik_deployment_mode == "swarm" %}
+      - Use `docker stack services traefik` to monitor services
+      {% endif %}
+  when: traefik_enabled
+
+- name: Display Traefik usage examples
+  ansible.builtin.debug:
+    msg: |
+      📝 Traefik usage examples:
+
+      Docker Compose labels:
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.myapp.rule=Host(`myapp.{{ traefik_domain | regex_replace('^traefik\\.', '') }}`)
+         - traefik.http.routers.myapp.tls.certresolver={{ traefik_dynamic_config.tls.stores.default.defaultCertificate.certFile |
+           regex_replace('.*/([^/]+)\\.crt', '\\1') }}
+        - traefik.http.services.myapp.loadbalancer.server.port=8080
+
+      Network connection:
+      networks:
+        - {{ traefik_network_name }}
+
+      {% if traefik_deployment_mode == "swarm" %}
+      Swarm deployment:
+      docker stack deploy -c myapp.yaml myapp
+      {% else %}
+      Compose deployment:
+      docker compose -f myapp.yaml up -d
+      {% endif %}
+  when: traefik_enabled

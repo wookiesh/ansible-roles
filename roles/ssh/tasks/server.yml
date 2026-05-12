@@ -1,0 +1,66 @@
+---
+- name: Install SSH server package
+  ansible.builtin.package:
+    name: openssh-server
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install SSH server package (RedHat)
+  ansible.builtin.package:
+    name: openssh-server
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Create SSH banner
+  ansible.builtin.copy:
+    dest: "{{ ssh_banner }}"
+    content: "{{ ssh_banner_text }}"
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Restart SSH
+  when: ssh_enable_banner
+
+- name: Deploy hardened SSH daemon configuration
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Restart SSH
+
+- name: Validate SSH configuration
+  ansible.builtin.command:
+    cmd: sshd -t
+  register: ssh_validation
+  changed_when: false
+  failed_when: ssh_validation.rc != 0
+
+- name: Ensure SSH service is enabled and running
+  ansible.builtin.service:
+    name: ssh
+    state: started
+    enabled: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure SSH service is enabled and running (RedHat)
+  ansible.builtin.service:
+    name: sshd
+    state: started
+    enabled: true
+  when: ansible_os_family == "RedHat"
+
+- name: Create ssh-users group for SSH access control
+  ansible.builtin.group:
+    name: ssh-users
+    state: present
+    system: true
+  when: not ssh_pikvm_mode
+
+- name: Setup fail2ban for SSH protection
+  ansible.builtin.import_tasks: fail2ban.yml
+  when: ssh_fail2ban_enabled
+
+- name: Manage SSH users and keys
+  ansible.builtin.import_tasks: users.yml

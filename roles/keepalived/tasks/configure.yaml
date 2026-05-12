@@ -1,0 +1,326 @@
+---
+# Keepalived configuration tasks
+- name: Create keepalived configuration directory
+  ansible.builtin.file:
+    path: "{{ keepalived_config_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+  become: true
+
+- name: Create keepalived scripts directory
+  ansible.builtin.file:
+    path: "{{ keepalived_scripts_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+  become: true
+  when: keepalived_track_scripts | length > 0 or keepalived_custom_scripts | length > 0
+
+- name: Create keepalived log directory
+  ansible.builtin.file:
+    path: "{{ keepalived_log_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ keepalived_user }}"
+    group: "{{ keepalived_group }}"
+  become: true
+  when: keepalived_log_dir != "/var/log"
+
+- name: Configure sysctl parameters for keepalived
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: "/etc/sysctl.d/99-keepalived.conf"
+    reload: true
+  loop: "{{ keepalived_sysctl_params }}"
+  become: true
+  when: keepalived_sysctl_params | length > 0
+
+- name: Deploy custom health check scripts
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ keepalived_scripts_dir }}/{{ item.name }}"
+    mode: "{{ item.mode | default('0755') }}"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  loop: "{{ keepalived_custom_scripts }}"
+  when: keepalived_custom_scripts | length > 0
+  notify: Restart keepalived
+  become: true
+
+- name: Deploy notification scripts
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ item.script }}"
+    mode: "{{ item.mode | default('0755') }}"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  when: keepalived_notify_scripts | length > 0
+  notify: Restart keepalived
+  become: true
+
+- name: Debug each custom script item
+  ansible.builtin.debug:
+    msg: "Processing custom script: {{ item.name }} -> {{ keepalived_scripts_dir }}/{{ item.name }}"
+  loop: "{{ keepalived_custom_scripts }}"
+  become: false
+
+- name: Deploy custom health check scripts
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ keepalived_scripts_dir }}/{{ item.name }}"
+    mode: "{{ item.mode | default('0755') }}"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  loop: "{{ keepalived_custom_scripts }}"
+  when: keepalived_custom_scripts | length > 0
+  notify: Restart keepalived
+  become: true
+
+- name: Deploy notification scripts
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ item.script }}"
+    mode: "{{ item.mode | default('0755') }}"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  when: keepalived_notify_scripts | length > 0
+  notify: Restart keepalived
+  become: true
+
+- name: Check if custom script actually exists
+  ansible.builtin.command:
+    cmd: "ls -la {{ keepalived_scripts_dir }}/{{ item.item.name }}"
+  loop: "{{ custom_script_result.results | default([]) }}"
+  register: script_exists_check
+  become: true
+  failed_when: false
+
+- name: Display script existence check
+  ansible.builtin.debug:
+    msg: "Script existence check for {{ item.item.item.name }}: {{ item.stdout | default('ERROR: ' + item.stderr) }}"
+  loop: "{{ script_exists_check.results | default([]) }}"
+  become: false
+
+- name: Ensure /usr/local/bin directory exists
+  ansible.builtin.file:
+    path: "/usr/local/bin"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+  when: keepalived_notify_scripts | length > 0
+
+- name: Ensure /usr/local/bin directory exists
+  ansible.builtin.file:
+    path: "/usr/local/bin"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+  when: keepalived_notify_scripts | length > 0
+
+- name: Debug notification scripts paths
+  ansible.builtin.debug:
+    msg: "Deploying script {{ item.name }} to {{ item.script }} - content defined: {{ item.content is defined }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  when:
+    - keepalived_notify_scripts | length > 0
+  become: false
+
+- name: Debug notification scripts condition
+  ansible.builtin.debug:
+    msg: "keepalived_notify_scripts length: {{ keepalived_notify_scripts | length }}, scripts: {{ keepalived_notify_scripts }}"
+  become: false
+
+- name: Debug notification scripts
+  ansible.builtin.debug:
+    msg: "Notification scripts: {{ keepalived_notify_scripts | length }} items"
+  become: false
+
+- name: Debug each notification script item
+  ansible.builtin.debug:
+    msg: "Processing notification script: {{ item.name }} -> {{ item.script }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  become: false
+
+- name: Deploy notification scripts
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ item.script }}"
+    mode: "{{ item.mode | default('0755') }}"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  notify: Restart keepalived
+  become: true
+
+- name: Verify notification scripts were created
+  ansible.builtin.stat:
+    path: "{{ item.script }}"
+  loop: "{{ keepalived_notify_scripts }}"
+  when:
+    - keepalived_notify_scripts | length > 0
+    - item.content is defined
+  register: script_stats
+  become: false
+
+- name: Display script creation status
+  ansible.builtin.debug:
+    msg: "Script {{ item.item.name }} exists: {{ item.stat.exists }}, path: {{ item.item.script }}"
+  loop: "{{ script_stats.results }}"
+  when:
+    - keepalived_notify_scripts | length > 0
+  become: false
+
+- name: Generate main keepalived configuration
+  ansible.builtin.template:
+    src: keepalived.conf.j2
+    dest: "{{ keepalived_config_file }}"
+    mode: "{{ keepalived_config_mode }}"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  notify: Restart keepalived
+  register: keepalived_config_result
+
+# Temporarily disable validation to test GARP parameters
+# - name: Validate keepalived configuration after script deployment
+#   ansible.builtin.command:
+#     cmd: "keepalived --config-test -f {{ keepalived_config_file }}"
+#   register: keepalived_config_validation
+#   changed_when: false
+#   failed_when: keepalived_config_validation.rc != 0
+#   when: keepalived_validate_config
+
+- name: Create keepalived environment file
+  ansible.builtin.template:
+    src: keepalived.env.j2
+    dest: "{{ keepalived_config_dir }}/keepalived"
+    mode: "0600"
+    owner: "{{ keepalived_config_owner }}"
+    group: "{{ keepalived_config_group }}"
+    backup: "{{ keepalived_config_backup }}"
+  when: keepalived_enable_non_root or keepalived_metrics_enabled
+  notify: Restart keepalived
+
+- name: Configure log rotation for keepalived
+  ansible.builtin.template:
+    src: logrotate.j2
+    dest: "/etc/logrotate.d/keepalived"
+    mode: "0644"
+    owner: root
+    group: root
+  when: keepalived_log_dir != "/var/log" or keepalived_log_file != "/var/log/keepalived.log"
+
+- name: Create stats socket directory
+  ansible.builtin.file:
+    path: "{{ keepalived_stats_socket | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ keepalived_user }}"
+    group: "{{ keepalived_group }}"
+  become: true
+  when: keepalived_metrics_enabled
+
+- name: Check if ufw is installed
+  ansible.builtin.command:
+    cmd: "which ufw"
+  register: ufw_check
+  changed_when: false
+  failed_when: false
+
+- name: Configure firewall for VRRP (ufw)
+  community.general.ufw:
+    rule: allow
+    to_port: "112"
+    proto: vrrp
+    comment: "Allow VRRP for keepalived"
+  when:
+    - ansible_os_family == "Debian"
+    - ufw_check.rc == 0
+  become: true
+  failed_when: false
+
+- name: Configure firewall for VRRP (firewalld)
+  ansible.posix.firewalld:
+    service: vrrp
+    state: enabled
+    permanent: true
+    immediate: true
+  when:
+    - ansible_os_family == "RedHat"
+    - "'firewalld' in ansible_facts.packages"
+  become: true
+  failed_when: false
+
+- name: Check if nftables is active
+  ansible.builtin.command:
+    cmd: "systemctl is-active nftables"
+  register: nftables_check
+  changed_when: false
+  failed_when: false
+
+- name: Configure nftables for VRRP and ICMP return traffic
+  ansible.builtin.template:
+    src: nftables-vrrp.j2
+    dest: "/etc/nftables.d/keepalived-vrrp.nft"
+    mode: "0644"
+  when:
+    - ansible_distribution == "Ubuntu"
+    - ansible_distribution_version is version('24.04', '>=')
+    - nftables_check.rc == 0
+  notify: Reload nftables
+  become: true
+  failed_when: false
+
+- name: Configure firewall for VRRP (firewalld)
+  ansible.posix.firewalld:
+    service: vrrp
+    state: enabled
+    permanent: true
+    immediate: true
+  when:
+    - ansible_os_family == "RedHat"
+    - "'firewalld' in ansible_facts.packages"
+  become: true
+  failed_when: false
+
+- name: Configure iptables for ICMP return traffic
+  ansible.builtin.iptables:
+    table: filter
+    chain: FORWARD
+    source: "{{ keepalived_vrrp_instances[0].virtual_ipaddress[0].split()[0] }}"
+    protocol: icmp
+    icmp_type: echo-reply
+    jump: ACCEPT
+    state: present
+  when:
+    - ansible_distribution == "Ubuntu"
+    - ansible_distribution_version is version('24.04', '>=')
+  become: true
+
+- name: Add keepalived user to required groups
+  ansible.builtin.user:
+    name: "{{ keepalived_user }}"
+    groups: "{{ item }}"
+    append: true
+  loop:
+    - netdev
+    - systemd-journal
+  when: keepalived_enable_non_root
+  become: true
+  failed_when: false

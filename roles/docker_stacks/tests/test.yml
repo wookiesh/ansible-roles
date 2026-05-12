@@ -1,0 +1,101 @@
+---
+- name: Test Docker Stacks role
+  hosts: localhost
+  become: true
+  vars:
+    # Test configuration
+    docker_stacks_enabled: true
+    docker_stacks_mode: "compose"  # Test compose mode
+    docker_stacks_base_dir: "/tmp/test_stacks"
+    docker_stacks:
+      - name: test_stack
+        compose_file: test_compose.yaml
+        target_hosts: localhost
+        replicas: 1
+        networks:
+          - name: test_network
+            driver: bridge
+        volumes:
+          - name: test_volume
+            mount_path: /data
+        environment:
+          - name: TEST_VAR
+            value: "test_value"
+        healthcheck:
+          enabled: true
+          test: ["CMD", "echo", "healthy"]
+          interval: "30s"
+          timeout: "10s"
+          retries: 3
+
+  pre_tasks:
+    - name: Show test environment
+      ansible.builtin.debug:
+        msg: "Testing Docker Stacks role on {{ ansible_distribution }} with {{ docker_stacks_mode }} mode"
+
+  tasks:
+    - name: Create test compose file
+      ansible.builtin.copy:
+        content: |
+          version: '3.8'
+          services:
+            test_service:
+              image: alpine:latest
+              command: ["sh", "-c", "echo 'Hello from test stack' && sleep 3600"]
+              ports:
+                - "8080:80"
+              environment:
+                TEST_VAR: "{{ TEST_VAR | default('test_value') }}"
+              healthcheck:
+                test: ["CMD", "echo", "healthy"]
+                interval: 30s
+                timeout: 10s
+                retries: 3
+          volumes:
+            test_volume:
+              driver: local
+          networks:
+            test_network:
+              driver: bridge
+        dest: "{{ docker_stacks_base_dir }}/test_compose.yaml"
+        mode: "0644"
+
+    - name: Include Docker Stacks role
+      ansible.builtin.include_role:
+        name: docker_stacks
+
+  post_tasks:
+    - name: Verify stack deployment
+      ansible.builtin.stat:
+        path: "{{ docker_stacks_base_dir }}/test_stack/docker-compose.yaml"
+      register: stack_deployment
+      failed_when: not stack_deployment.stat.exists
+
+    - name: Verify Docker Compose syntax
+      ansible.builtin.command: |
+        cd {{ docker_stacks_base_dir }}/test_stack && docker compose config --quiet
+      register: compose_syntax
+      changed_when: false
+      failed_when: compose_syntax.rc != 0
+
+    - name: Check service status
+      ansible.builtin.command: docker compose ps --format json
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display test results
+      ansible.builtin.debug:
+        msg: |
+          ✅ Docker Stacks role test completed successfully
+          - Stack directory: {{ docker_stacks_base_dir }}
+          - Stack deployed: {{ 'YES' if stack_deployment.stat.exists else 'NO' }}
+          - Compose syntax: {{ 'VALID' if compose_syntax.rc == 0 else 'INVALID' }}
+          - Services running: {{ service_status.stdout | from_json | length }}
+          - Mode: {{ docker_stacks_mode }}
+
+    - name: Cleanup test environment
+      ansible.builtin.file:
+        path: "{{ docker_stacks_base_dir }}"
+        state: absent
+      when: stack_deployment.stat.exists

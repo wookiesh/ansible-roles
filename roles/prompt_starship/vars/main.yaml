@@ -1,0 +1,3 @@
+---
+# Default ZDOTDIR path (can be overridden by user's dotfiles)
+prompt_starship_zdotdir: "{{ admin_user_info.home }}/.config/zsh"

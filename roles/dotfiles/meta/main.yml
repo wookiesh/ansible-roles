@@ -1,0 +1,39 @@
+---
+# Meta information for dotfiles role
+dependencies: []
+galaxy_info:
+  author: wookiesh
+  description: Install and configure dotfiles using GNU Stow
+  company: ""
+  license: MIT
+  min_ansible_version: "2.9"
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: EL
+      versions:
+        - all
+    - name: Fedora
+      versions:
+        - all
+    - name: AIX
+      versions:
+        - all
+    - name: ArchLinux
+      versions:
+        - all
+    - name: macOS
+      versions:
+        - all
+
+  galaxy_tags:
+    - dotfiles
+    - stow
+    - configuration
+    - development
+    - shell

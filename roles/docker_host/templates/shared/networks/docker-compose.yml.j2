@@ -1,0 +1,53 @@
+# Shared Docker networks
+# Usage: docker compose -f docker-compose.yml up -d
+
+networks:
+  # External network for services exposed by Traefik
+  traefik_public:
+    driver: bridge
+    external: true
+    
+  # Monitoring stack network
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    labels:
+      - "com.docker.compose.project=shared"
+      - "purpose=monitoring"
+    
+  # Database network (isolated, no internet access)
+  database:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1
+    labels:
+      - "com.docker.compose.project=shared"
+      - "purpose=database"
+    
+  # Backend services network
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+          gateway: 172.22.0.1
+    labels:
+      - "com.docker.compose.project=shared"
+      - "purpose=backend"
+      
+  # Development network
+  development:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+          gateway: 172.23.0.1
+    labels:
+      - "com.docker.compose.project=shared"
+      - "purpose=development"

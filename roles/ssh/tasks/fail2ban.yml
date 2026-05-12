@@ -1,0 +1,32 @@
+---
+- name: Install fail2ban
+  ansible.builtin.package:
+    name: fail2ban
+    state: present
+  when: not ssh_pikvm_mode
+
+- name: Create fail2ban SSH jail configuration
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/ssh.conf
+    content: |
+      [sshd]
+      enabled = true
+      port = {{ ssh_port }}
+      filter = sshd
+      logpath = %(sshd_log)s
+      maxretry = {{ ssh_fail2ban_maxretry }}
+      findtime = {{ ssh_fail2ban_findtime }}
+      bantime = {{ ssh_fail2ban_bantime }}
+      backend = %(sshd_backend)s
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Restart fail2ban
+  when: not ssh_pikvm_mode
+
+- name: Ensure fail2ban service is enabled and running
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  when: not ssh_pikvm_mode

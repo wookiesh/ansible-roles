@@ -1,0 +1,47 @@
+---
+galaxy_info:
+  author: wookiesh
+  description: Install and configure Tailscale VPN with 2025 best practices
+  company: Homelab
+  license: MIT
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+        - trixie
+    - name: RedHat
+      versions:
+        - "8"
+        - "9"
+    - name: CentOS
+      versions:
+        - "8"
+        - "9"
+    - name: Fedora
+      versions:
+        - "38"
+        - "39"
+        - "40"
+    - name: ArchLinux
+      versions:
+        - all
+
+  galaxy_tags:
+    - vpn
+    - networking
+    - tailscale
+    - security
+    - wireguard
+    - mesh
+    - zerotier
+    - system
+
+dependencies: []

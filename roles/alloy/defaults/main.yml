@@ -1,0 +1,48 @@
+---
+# Grafana Alloy observability agent
+alloy_enabled: false
+alloy_version: "v1.7.4"
+
+# Deployment paths
+alloy_docker_services_root: "{{ docker_host_services_root | default('/opt/docker') }}"
+alloy_install_dir: "{{ alloy_docker_services_root }}/stacks/alloy"
+alloy_config_dir: "{{ alloy_install_dir }}/config"
+alloy_swarm_file: "{{ alloy_install_dir }}/swarm.yaml"
+
+# Swarm — global mode, managers only by default
+alloy_swarm_placement_constraints:
+  - "node.role == manager"
+alloy_swarm_resources:
+  limits:
+    cpus: "0.5"
+    memory: 256M
+  reservations:
+    cpus: "0.1"
+    memory: 64M
+alloy_swarm_restart_policy:
+  condition: any
+  delay: 5s
+  max_attempts: 3
+  window: 120s
+
+# Grafana Cloud — Loki (logs)
+alloy_loki_enabled: true
+alloy_grafana_cloud_loki_url: ""
+alloy_grafana_cloud_loki_username: ""
+
+# Grafana Cloud — Prometheus/Mimir (metrics, opt-in)
+alloy_metrics_enabled: false
+alloy_grafana_cloud_prometheus_url: ""
+alloy_grafana_cloud_prometheus_username: ""
+alloy_traefik_metrics_port: "8899"
+alloy_scrape_interval: "30s"
+
+# Traefik log collection
+# Set alloy_traefik_log_path to match traefik_access_log_path
+alloy_traefik_logs_enabled: true
+alloy_traefik_log_path: ""
+
+# Labels added to all telemetry
+alloy_environment: "production"
+alloy_cluster: ""
+alloy_extra_labels: {}

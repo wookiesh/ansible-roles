@@ -1,0 +1,17 @@
+---
+# Hostname Management
+server_hostname_manage: true
+server_hostname_update_hosts: true
+server_hostname_fqdn: "{{ inventory_hostname if '.' in inventory_hostname else inventory_hostname + '.' + server_domain }}"
+
+# Automatic Updates
+server_automatic_updates_enabled: true
+server_auto_update_config_file: "/etc/apt/apt.conf.d/20auto-upgrades"
+
+# Apticron Notifications
+server_apticron_enabled: false
+server_apticron_email: root
+
+# System Performance
+server_performance_tuning_enabled: false
+server_performance_swappiness: 10

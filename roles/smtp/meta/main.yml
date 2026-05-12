@@ -1,0 +1,30 @@
+---
+galaxy_info:
+  role_name: smtp
+  author: wookiesh
+  description: Configure Postfix as null client or relay host following 2025 Ansible best practices
+
+  license: MIT
+
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - bullseye
+    - name: Ubuntu
+      versions:
+        - jammy
+        - focal
+
+  galaxy_tags:
+    - postfix
+    - smtp
+    - mail
+    - relay
+    - nullclient
+    - security
+    - tls
+
+dependencies: []

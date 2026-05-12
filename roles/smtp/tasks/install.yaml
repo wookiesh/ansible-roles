@@ -1,0 +1,48 @@
+---
+- name: Preseed Postfix debconf to avoid interactive prompts
+  ansible.builtin.debconf:
+    name: postfix
+    question: "postfix/main_mailer_type"
+    value: "No configuration"
+    vtype: select
+
+- name: Install Postfix and mail utilities
+  ansible.builtin.package:
+    name:
+      - postfix
+      - mailutils
+      - libsasl2-modules
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Set mailname (used for sender domain)
+  ansible.builtin.copy:
+    dest: /etc/mailname
+    content: "{{ smtp_mailname }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart postfix
+
+- name: Configure system aliases
+  ansible.builtin.template:
+    src: aliases.j2
+    dest: /etc/aliases
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Run newaliases
+    - Restart postfix
+
+- name: Deploy base Postfix configuration
+  ansible.builtin.template:
+    src: main.cf.j2
+    dest: /etc/postfix/main.cf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart postfix
+

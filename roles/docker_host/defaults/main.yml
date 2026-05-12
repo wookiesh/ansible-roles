@@ -1,0 +1,92 @@
+---
+# Docker installation and configuration using official script
+docker_host_enabled: false
+docker_host_install_method: "script" # script (recommended), repository (legacy)
+docker_host_version: "latest"
+
+# Docker installation control
+docker_host_auto_update: false # Set to true to allow automatic updates
+docker_host_skip_update_if_running: true # Skip update if containers are running
+
+# Official script settings
+docker_host_install_script_url: "https://get.docker.com"
+docker_host_install_script_path: "/tmp/get-docker.sh"
+docker_host_install_script_dry_run: false
+
+# Docker daemon configuration (2025 best practices)
+docker_host_daemon_config:
+  log-driver: "json-file"
+  log-opts:
+    max-size: "10m"
+    max-file: "10"
+  storage-driver: "overlay2"
+  live-restore: true
+  userland-proxy: false
+  # experimental: false
+  # # default-address-pools:
+  # #   - base: "172.17.0.0/16"
+  # #     size: 24
+  # # Security hardening 2025
+  # seccomp-profile: "unconfined" # Use "default" for default profile or provide custom profile path
+  # no-new-privileges: true
+  # # Performance optimizations
+  # max-concurrent-downloads: 10
+  # max-concurrent-uploads: 5
+  # # Network optimizations
+  # iptables: true
+  # ip-forward: true
+  # # Registry mirrors (optional)
+  # # registry-mirrors:
+  # #   - "https://mirror.gcr.io"
+
+# Security settings
+docker_host_user: "{{ admin_user_name | default('ansible_user') }}"
+docker_host_add_user_to_group: true
+docker_host_group_members: []
+docker_host_daemon_json: {}
+# Docker Compose settings
+docker_host_compose_install: true
+docker_host_compose_install_method: "plugin" # plugin (recommended) or standalone
+docker_host_compose_version: "latest"
+
+# Container management
+docker_host_auto_start_containers: false
+docker_host_prune_images: false
+docker_host_prune_volumes: false
+docker_host_prune_networks: false
+docker_host_prune_build_cache: false
+
+# Systemd service configuration
+docker_host_systemd_override: true
+docker_host_systemd_options:
+  - "LimitNOFILE=1048576"
+  - "Restart=always"
+  - "RestartSec=5"
+
+# Network and security
+docker_host_default_bridge: "docker0"
+docker_host_enable_ip_forwarding: true
+# docker_host_configure_firewall: false
+
+# Docker services structure
+docker_host_services_root: "/opt/docker"
+docker_host_services_group: "docker"
+docker_host_services_permissions: "g+ws"
+
+# Docker Swarm Configuration (RFC1918 compliant)
+docker_host_swarm_enabled: false
+
+docker_host_swarm_data_path_port: 4789
+docker_host_swarm_role: "worker" #  worker ou manager
+docker_host_swarm_advertise_addr: "{{ ansible_host }}"
+docker_host_swarm_listen_addr: "0.0.0.0:2377"
+docker_host_swarm_default_addr_pool: "10.250.0.0/16" #  256 sous-réseaux /24 disponibles
+docker_host_swarm_subnet_size: "24"
+docker_host_swarm_node_labels: {}
+docker_host_swarm_heartbeat_period: 30
+docker_host_swarm_election_tick: 10
+docker_host_swarm_snapshot_interval: 10000
+docker_host_swarm_keepalive_old: 60
+docker_host_swarm_log_entries_for_slow_follower: 500
+docker_host_swarm_heartbeat_tick: 1
+docker_host_swarm_prefer_lease_leader: true

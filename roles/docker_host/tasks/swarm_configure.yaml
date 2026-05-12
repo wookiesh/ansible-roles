@@ -1,0 +1,65 @@
+---
+- name: Get current Swarm node information
+  community.docker.docker_node_info:
+    self: true
+  register: docker_host_current_node_info
+  when: docker_host_swarm_info.swarm_facts is defined
+- name: Convert node labels to dict format
+  ansible.builtin.set_fact:
+    docker_host_node_labels_dict: "{{ docker_host_swarm_node_labels if docker_host_swarm_node_labels is mapping else {} }}"
+
+- name: Build labels dict from list
+  ansible.builtin.set_fact:
+    docker_host_node_labels_dict: "{{ docker_host_node_labels_dict | combine({item: 'true'}) }}"
+  loop: "{{ docker_host_swarm_node_labels | default([]) | list }}"
+  when:
+    - docker_host_swarm_node_labels is defined
+    - docker_host_swarm_node_labels is iterable
+    - docker_host_swarm_node_labels is not mapping
+
+- name: Apply node labels
+  community.docker.docker_node:
+    hostname: "{{ inventory_hostname }}"
+    labels: "{{ docker_host_node_labels_dict }}"
+    labels_state: merge
+  register: docker_host_node_labels_result
+  when:
+    - docker_host_swarm_info.swarm_facts is defined
+    - docker_host_swarm_node_labels | length > 0
+- name: Display node configuration
+  ansible.builtin.debug:
+    msg: |
+      🔧 Node configuration for {{ inventory_hostname }}:
+      - Current labels: {{ docker_host_current_node_info.node.Labels | default({}) }}
+      - Applied labels: {{ docker_host_swarm_node_labels }}
+      - Labels changed: {{ docker_host_node_labels_result.changed if docker_host_node_labels_result is defined else false }}
+  when: docker_host_swarm_info.swarm_facts is defined
+- name: Get all nodes in Swarm
+  community.docker.docker_node_info:
+  register: docker_host_all_nodes
+  when:
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+- name: Display cluster overview
+  ansible.builtin.debug:
+    msg: |
+      📊 Docker Swarm Cluster Overview:
+      Total nodes: {{ docker_host_all_nodes.nodes | length }}
+      Managers: {{ docker_host_all_nodes.nodes | selectattr('Spec.Role', 'equalto', 'manager') | list | length }}
+      Workers: {{ docker_host_all_nodes.nodes | selectattr('Spec.Role', 'equalto', 'worker') | list | length }}
+
+      Node details:
+      {% for node in docker_host_all_nodes.nodes %}
+      - {{ node.ID[:8] }} ({{ node.Description.Hostname }}):
+        Status: {{ node.Status.State }}
+        Role: {{ node.Spec.Role }}
+        Availability: {{ node.Spec.Availability }}
+        {% if node.ManagerStatus is defined %}
+        Leader: {{ node.ManagerStatus.Leader | default('false') }}
+        Reachability: {{ node.ManagerStatus.Reachability | default('unknown') }}
+        {% endif %}
+      {% endfor %}
+  when:
+    - docker_host_swarm_role == "manager"
+    - inventory_hostname == docker_swarm_manager
+    - docker_host_all_nodes.nodes is defined

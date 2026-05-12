@@ -1,0 +1,44 @@
+[Unit]
+Description=Keepalived for High Availability
+Documentation=man:keepalived(8)
+Documentation=man:keepalived.conf(5)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists={{ keepalived_config_file }}
+
+[Service]
+Type=forking
+KillMode=process
+EnvironmentFile=-{{ keepalived_config_dir }}/keepalived
+ExecStart=/usr/sbin/keepalived $KEEPALIVED_OPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/var/run/keepalived.pid
+
+# Security settings
+{% if keepalived_enable_non_root %}
+User={{ keepalived_user }}
+Group={{ keepalived_group }}
+{% endif %}
+NoNewPrivileges={{ keepalived_drop_capabilities | lower }}
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ keepalived_config_dir }} {{ keepalived_log_dir }} /run /tmp
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Restart settings
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=keepalived
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: nut_server
+  description: Setup and configure NUT server for UPS management
+  author: your_name
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+dependencies: []

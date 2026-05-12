@@ -1,0 +1,1 @@
+/^(.*)@(.*)\.{{ smtp_internal_domain | replace('.', '\\.') }}$/ $1.$2@{{ smtp_internal_domain }}

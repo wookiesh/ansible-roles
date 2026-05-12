@@ -1,0 +1,48 @@
+---
+- name: Validate Swarm variables
+  ansible.builtin.assert:
+    that:
+      - docker_host_swarm_role in ['worker', 'manager']
+      - docker_host_swarm_advertise_addr is defined
+      - docker_host_swarm_advertise_addr | length > 0
+      - docker_host_swarm_listen_addr is defined
+      - docker_host_swarm_subnet_size is number
+      - docker_host_swarm_subnet_size >= 16 and docker_host_swarm_subnet_size <= 30
+      - docker_host_swarm_data_path_port is number
+      - docker_host_swarm_data_path_port >= 1024 and docker_host_swarm_data_path_port <= 65535
+    fail_msg: |
+      ❌ Invalid Docker Swarm configuration:
+      - Role: {{ docker_host_swarm_role | default('UNDEFINED') }}
+      - Advertise Addr: {{ docker_host_swarm_advertise_addr | default('UNDEFINED') }}
+      - Listen Addr: {{ docker_host_swarm_listen_addr | default('UNDEFINED') }}
+      - Subnet Size: {{ docker_host_swarm_subnet_size | default('UNDEFINED') }}
+      - Data Path Port: {{ docker_host_swarm_data_path_port | default('UNDEFINED') }}
+
+      Required: role in [worker,manager], valid advertise_addr, subnet_size 16-30
+    success_msg: "✅ Docker Swarm variables validated for {{ inventory_hostname }}"
+
+- name: Check if Docker is running
+  ansible.builtin.systemd:
+    name: docker
+  register: docker_host_service_check
+  failed_when: false
+
+- name: Ensure Docker is running before Swarm setup
+  ansible.builtin.debug:
+    msg: "Docker service status: {{ docker_host_service_check.status.ActiveState | default('unknown') }}"
+  when: docker_host_service_check.status is defined
+
+- name: Check if already part of a Swarm
+  community.docker.docker_swarm_info:
+  register: docker_host_swarm_info
+  failed_when: false
+  changed_when: false
+
+- name: Display current Swarm status
+  ansible.builtin.debug:
+    msg: |
+      🐳 Docker Swarm Status for {{ inventory_hostname }}:
+      - Already in Swarm: {{ docker_host_swarm_info.swarm_facts is defined }}
+      - Role: {{ docker_host_swarm_role }}
+      - Advertise Address: {{ docker_host_swarm_advertise_addr }}
+  when: docker_host_swarm_info.swarm_facts is defined

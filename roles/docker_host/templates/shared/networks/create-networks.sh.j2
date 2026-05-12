@@ -1,0 +1,62 @@
+#!/bin/bash
+# Create shared Docker networks
+# Run this script once to initialize all shared networks
+
+set -e
+
+echo "🏗️  Creating shared Docker networks..."
+
+# Create traefik_public network (external)
+if ! docker network inspect traefik_public >/dev/null 2>&1; then
+    echo "Creating traefik_public network..."
+    docker network create traefik_public --driver bridge
+else
+    echo "✅ traefik_public network already exists"
+fi
+
+# Create monitoring network
+if ! docker network inspect monitoring >/dev/null 2>&1; then
+    echo "Creating monitoring network (172.20.0.0/16)..."
+    docker network create monitoring --driver bridge --subnet=172.20.0.0/16 --gateway=172.20.0.1
+else
+    echo "✅ monitoring network already exists"
+fi
+
+# Create database network (isolated)
+if ! docker network inspect database >/dev/null 2>&1; then
+    echo "Creating database network (172.21.0.0/16, isolated)..."
+    docker network create database --driver bridge --internal --subnet=172.21.0.0/16 --gateway=172.21.0.1
+else
+    echo "✅ database network already exists"
+fi
+
+# Create backend network
+if ! docker network inspect backend >/dev/null 2>&1; then
+    echo "Creating backend network (172.22.0.0/16)..."
+    docker network create backend --driver bridge --subnet=172.22.0.0/16 --gateway=172.22.0.1
+else
+    echo "✅ backend network already exists"
+fi
+
+# Create development network
+if ! docker network inspect development >/dev/null 2>&1; then
+    echo "Creating development network (172.23.0.0/16)..."
+    docker network create development --driver bridge --subnet=172.23.0.0/16 --gateway=172.23.0.1
+else
+    echo "✅ development network already exists"
+fi
+
+echo ""
+echo "🎉 All shared networks created successfully!"
+echo ""
+echo "Available networks:"
+docker network ls --filter "name=traefik_public|monitoring|database|backend|development"
+echo ""
+echo "Usage in docker-compose.yml:"
+echo "networks:"
+echo "  traefik_public:"
+echo "    external: true"
+echo "  monitoring:"
+echo "    external: true"
+echo "  database:"
+echo "    external: true"

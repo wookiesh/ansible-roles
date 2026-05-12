@@ -1,0 +1,93 @@
+# Managed by Ansible - Postfix Main Configuration
+# SMTP Role: {% if smtp_null_client_enabled %}Null Client{% elif smtp_relayhost_enabled %}Relay Host{% else %}Disabled{% endif %}
+
+# Basic Settings
+smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+biff = no
+compatibility_level = 3.6
+append_dot_mydomain = yes
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+mynetworks = 127.0.0.0/8, [::1]/128
+myhostname = {{ ansible_fqdn }}
+myorigin = /etc/mailname
+
+# Default destination settings (will be overridden by role-specific configuration)
+mydestination = $myhostname, localhost.$mydomain, localhost
+inet_interfaces = all
+relayhost =
+
+# TLS Configuration
+smtp_use_tls = {{ 'yes' if smtp_use_tls else 'no' }}
+smtp_tls_security_level = {{ smtp_tls_security_level }}
+smtp_tls_mandatory_protocols = {{ smtp_tls_mandatory_protocols }}
+smtp_tls_mandatory_ciphers = {{ smtp_tls_mandatory_ciphers }}
+
+# SASL Configuration
+smtp_sasl_auth_enable = {{ 'yes' if smtp_sasl_auth_enable else 'no' }}
+smtp_sasl_password_maps = {{ smtp_sasl_password_maps }}
+smtp_sasl_security_options = {{ smtp_sasl_security_options }}
+smtp_sasl_tls_security_options = {{ smtp_sasl_tls_security_options }}
+
+# Security Settings
+disable_vrfy_command = {{ 'yes' if smtp_disable_vrfy_command else 'no' }}
+strict_rfc821_envelopes = {{ 'yes' if smtp_strict_rfc821_envelopes else 'no' }}
+smtpd_delay_reject = {{ 'yes' if smtp_delay_reject else 'no' }}
+smtpd_helo_required = {{ 'yes' if smtp_helo_required else 'no' }}
+smtpd_hard_error_limit = {{ smtp_hard_error_limit }}
+smtpd_error_sleep_time = {{ smtp_error_sleep_time }}
+message_size_limit = {{ smtp_message_size_limit }}
+
+{% if smtp_relayhost_enabled %}
+# Relay Host Configuration
+# These settings will be applied by tasks/relayhost.yaml
+# relayhost, inet_interfaces, relay_domains set via lineinfile
+
+# Header rewriting maps for relay
+{% for config_file in smtp_relay_config_files %}
+{% if 'header_checks' in config_file.dest %}
+header_checks = regexp:/etc/postfix/header_checks
+{% elif 'sender_canonical' in config_file.dest %}
+sender_canonical_maps = regexp:/etc/postfix/sender_canonical
+{% elif 'recipient_canonical' in config_file.dest %}
+recipient_canonical_maps = regexp:/etc/postfix/recipient_canonical
+{% endif %}
+{% endfor %}
+
+# TLS for incoming connections (relay host)
+smtpd_tls_security_level = encrypt
+smtpd_tls_mandatory_protocols = {{ smtp_tls_mandatory_protocols }}
+smtpd_tls_mandatory_ciphers = {{ smtp_tls_mandatory_ciphers }}
+tls_preempt_cipherlist = yes
+smtpd_tls_cert_file = /etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file = /etc/ssl/private/ssl-cert-snakeoil.key
+
+# SASL for incoming connections
+smtpd_sasl_auth_enable = yes
+smtpd_tls_auth_only = yes
+smtpd_sasl_security_options = noanonymous, noplaintext
+smtpd_sasl_tls_security_options = noanonymous
+smtpd_sasl_type = cyrus
+
+# Default restrictions (will be overridden by tasks/relayhost.yaml)
+smtpd_client_restrictions = permit_mynetworks, reject_unauth_pipelining
+smtpd_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname
+smtpd_sender_restrictions = permit_mynetworks, reject_non_fqdn_sender
+smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
+smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination
+smtpd_data_restrictions = permit_mynetworks, reject_unauth_pipelining
+
+{% elif smtp_null_client_enabled %}
+# Null Client Configuration
+# These settings will be applied by tasks/null_client.yaml
+# relayhost, inet_interfaces, mydestination, local_transport set via lineinfile
+
+# Minimal configuration for null client
+local_transport = error: local delivery disabled
+local_recipient_maps =
+
+{% endif %}
+
+# Logging (uncomment for debugging)
+#debug_peer_level = 2
+#debug_peer_list = {{ smtp_relayhost | default('smtp.example.com') }}

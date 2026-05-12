@@ -1,0 +1,31 @@
+---
+- name: Install pam-ssh-agent-auth (Debian)
+  ansible.builtin.package:
+    name: libpam-ssh-agent-auth
+    state: present
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Install pam-ssh-agent-auth (RedHat)
+  ansible.builtin.package:
+    name: pam_ssh_agent_auth
+    state: present
+  become: true
+  when: ansible_os_family == "RedHat"
+
+- name: Preserve SSH_AUTH_SOCK in sudoers
+  ansible.builtin.copy:
+    content: |
+      Defaults env_keep += "SSH_AUTH_SOCK"
+    dest: /etc/sudoers.d/ssh_agent_auth
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  become: true
+
+- name: Configure PAM sudo to use SSH agent auth
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/sudo
+    line: "auth sufficient pam_ssh_agent_auth.so file=%h/.ssh/authorized_keys"
+    insertbefore: "^@include common-auth"
+    state: present
+  become: true

@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  author: wookiesh
+  description: Install and configure GlusterFS distributed storage
+  company: Homelab
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+  galaxy_tags:
+    - storage
+    - filesystem
+    - clustering
+    - glusterfs
+
+dependencies: []

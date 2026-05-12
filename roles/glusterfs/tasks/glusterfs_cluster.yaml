@@ -1,0 +1,139 @@
+---
+- name: Configure GlusterFS cluster and volumes
+  ansible.builtin.pause:
+    seconds: 10
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Probe cluster peers (only on first node)
+  ansible.builtin.shell: |
+    for peer in {% for host in groups[glusterfs_group_name] %}{% if host != inventory_hostname %}{{ hostvars[host]['glusterfs_bind_address'] }} {% endif %}{% endfor %}; do
+      gluster peer probe $peer || true
+    done
+  register: gluster_peer_probe
+  changed_when: "'already in peer' not in gluster_peer_probe.stdout and 'already part of cluster' not in gluster_peer_probe.stdout"
+  failed_when: false
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Check peer status
+  ansible.builtin.shell: gluster peer status
+  register: gluster_peer_status
+  changed_when: false
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Display peer status
+  ansible.builtin.debug:
+    msg: |
+      GlusterFS Peer Status:
+      {{ gluster_peer_status.stdout }}
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Check if volume already exists
+  ansible.builtin.shell: gluster volume info {{ glusterfs_volume_name }}
+  register: gluster_volume_check
+  changed_when: false
+  failed_when: false
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Create GlusterFS volume (only on first node)
+  ansible.builtin.shell: |
+    gluster volume create {{ glusterfs_volume_name }} \
+      replica {{ glusterfs_replica_count }} \
+      {% for host in groups[glusterfs_group_name] %}
+      {{ hostvars[host]['glusterfs_bind_address'] }}:{{ glusterfs_brick_dir }}/{{ glusterfs_volume_name }} \
+      {% endfor %} \
+      force
+  register: gluster_volume_create
+  changed_when: "'successful' in gluster_volume_create.stdout"
+  failed_when: "'already exists' not in gluster_volume_create.stderr and gluster_volume_create.rc != 0"
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0] and gluster_volume_check.rc != 0
+
+- name: Start GlusterFS volume (only on first node)
+  ansible.builtin.shell: gluster volume start {{ glusterfs_volume_name }}
+  register: gluster_volume_start
+  changed_when: "'started successfully' in gluster_volume_start.stdout"
+  failed_when: false
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Configure volume options (only on first node)
+  ansible.builtin.shell: gluster volume set {{ glusterfs_volume_name }} {{ item.key }} {{ item.value }}
+  register: gluster_volume_options
+  changed_when: "'volume set: successful' in gluster_volume_options.stdout"
+  loop: "{{ glusterfs_volume_options | dict2items }}"
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0] and glusterfs_volume_options is defined
+
+- name: Get volume information
+  ansible.builtin.shell: gluster volume info {{ glusterfs_volume_name }}
+  register: gluster_volume_info
+  changed_when: false
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Display volume information
+  ansible.builtin.debug:
+    msg: |
+      GlusterFS Volume Information:
+      {{ gluster_volume_info.stdout }}
+  run_once: true
+  when: inventory_hostname == groups[glusterfs_group_name][0]
+
+- name: Create mount point directory
+  ansible.builtin.file:
+    path: "{{ glusterfs_mount_dir }}"
+    state: directory
+    mode: "{{ glusterfs_dir_permissions }}"
+    owner: root
+    group: root
+
+- name: Check if volume is already mounted
+  ansible.builtin.command: mountpoint -q {{ glusterfs_mount_dir }}
+  register: gluster_mount_check
+  changed_when: false
+  failed_when: false
+
+- name: Mount GlusterFS volume
+  ansible.posix.mount:
+    path: "{{ glusterfs_mount_dir }}"
+    src: "{{ glusterfs_bind_address }}:{{ glusterfs_volume_name }}"
+    fstype: glusterfs
+    opts: "defaults,_netdev"
+    state: mounted
+  when: gluster_mount_check.rc != 0
+
+- name: Add fstab entry for persistent mount
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^{{ glusterfs_bind_address }}:{{ glusterfs_volume_name }}"
+    line: "{{ glusterfs_bind_address }}:{{ glusterfs_volume_name }} {{ glusterfs_mount_dir }} glusterfs defaults,_netdev,x-systemd.requires=glusterd.service,x-systemd.after=glusterd.service,fetch-attempts=5,log-level=WARNING 0 0"
+    state: present
+    backup: "{{ glusterfs_backup_config }}"
+
+- name: Verify mount is accessible
+  ansible.builtin.stat:
+    path: "{{ glusterfs_mount_dir }}"
+  register: gluster_mount_verify
+
+- name: Test write permissions on mount
+  ansible.builtin.file:
+    path: "{{ glusterfs_mount_dir }}/.glusterfs_test"
+    state: touch
+    mode: "0644"
+  register: gluster_write_test
+  notify: Cleanup test file
+
+- name: Display mount status
+  ansible.builtin.debug:
+    msg: |
+      GlusterFS Configuration Complete:
+      - Volume: {{ glusterfs_volume_name }}
+      - Mount Point: {{ glusterfs_mount_dir }}
+      - Replica Count: {{ glusterfs_replica_count }}
+      - Cluster Size: {{ groups[glusterfs_group_name] | length }} nodes
+      - Mount Status: {{ 'Accessible' if gluster_mount_verify.stat.exists else 'Not Accessible' }}
+  when: gluster_mount_verify.stat.exists

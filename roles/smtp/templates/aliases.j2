@@ -1,0 +1,8 @@
+# Managed by Ansible - SMTP System Aliases
+
+{% for alias, target in smtp_aliases.items() %}
+{{ alias }}: {{ target }}
+{% endfor %}
+{% if smtp_root_alias | length > 0 %}
+root: {{ smtp_root_alias }}
+{% endif %}

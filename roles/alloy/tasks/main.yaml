@@ -1,0 +1,15 @@
+---
+- name: Import Alloy validation tasks
+  ansible.builtin.import_tasks: validate.yaml
+
+- name: Import Alloy installation tasks
+  ansible.builtin.import_tasks: install.yaml
+  when: alloy_enabled
+
+- name: Import Alloy secrets management tasks
+  ansible.builtin.import_tasks: secrets.yaml
+  when: alloy_enabled
+
+- name: Import Alloy configuration tasks
+  ansible.builtin.import_tasks: configure.yaml
+  when: alloy_enabled

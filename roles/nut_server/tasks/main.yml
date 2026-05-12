@@ -1,0 +1,24 @@
+---
+- name: Install NUT server packages
+  ansible.builtin.package:
+    name:
+      - nut
+      - nut-server
+      - nut-client
+    state: present
+
+- name: Deploy NUT server configuration files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: nut
+    mode: "{{ item.mode }}"
+  loop: "{{ nut_server_config_files }}"
+  notify: Restart NUT services
+
+- name: Enable and start NUT services
+  ansible.builtin.systemd:
+    name: nut-server
+    enabled: true
+    state: started

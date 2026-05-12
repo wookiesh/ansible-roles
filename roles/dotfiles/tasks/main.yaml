@@ -1,0 +1,114 @@
+---
+- name: Fail if dotfiles management is disabled
+  ansible.builtin.fail:
+    msg: "Dotfiles management is disabled on this host"
+  when: not dotfiles_enabled
+
+- name: Fail if required variables are not set
+  ansible.builtin.fail:
+    msg: "{{ item.name }} must be set"
+  when: not item.value
+  loop:
+    - { name: dotfiles_user, value: "{{ dotfiles_user }}" }
+    - { name: dotfiles_repo, value: "{{ dotfiles_repo }}" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validate dotfiles repository URL
+  ansible.builtin.assert:
+    that:
+      - dotfiles_repo is match('https://.*')
+    fail_msg: "dotfiles_repo must be an HTTPS URL, got: {{ dotfiles_repo }}"
+
+- name: Get dotfiles user home directory
+  ansible.builtin.user:
+    name: "{{ dotfiles_user }}"
+    state: present
+  register: dotfiles_user_info
+  become: true
+  become_user: root
+
+- name: Set dotfiles paths
+  ansible.builtin.set_fact:
+    dotfiles_user_home: "{{ dotfiles_user_info.home }}"
+    dotfiles_user_dest: "{{ dotfiles_user_info.home }}/{{ dotfiles_dest }}"
+
+- name: Set OS-specific packages variable
+  ansible.builtin.set_fact:
+    _dotfiles_packages: "{{ dotfiles_packages_debian }}"
+  when: ansible_os_family == "Debian"
+
+- name: Set OS-specific packages variable (RedHat)
+  ansible.builtin.set_fact:
+    _dotfiles_packages: "{{ dotfiles_packages_redhat }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Set OS-specific packages variable (Arch)
+  ansible.builtin.set_fact:
+    _dotfiles_packages: "{{ dotfiles_packages_arch }}"
+  when: ansible_os_family == "Archlinux"
+
+- name: Set OS-specific packages variable (Darwin)
+  ansible.builtin.set_fact:
+    _dotfiles_packages: "{{ dotfiles_packages_darwin }}"
+  when: ansible_os_family == "Darwin"
+
+- name: Ensure required packages are installed
+  ansible.builtin.package:
+    name: "{{ _dotfiles_packages }}"
+    state: present
+  when: _dotfiles_packages is defined
+  become: true
+  become_user: root
+
+- name: Create dotfiles destination directory
+  ansible.builtin.file:
+    path: "{{ dotfiles_user_dest | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Clone dotfiles repository
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo }}"
+    dest: "{{ dotfiles_user_dest }}"
+    version: "{{ dotfiles_version }}"
+    update: "{{ dotfiles_force_update }}"
+    force: "{{ dotfiles_force_update }}"
+  register: dotfiles_clone
+
+- name: Verify bootstrap script exists
+  ansible.builtin.stat:
+    path: "{{ dotfiles_user_dest }}/{{ dotfiles_bootstrap_script }}"
+  register: dotfiles_script_stat
+
+- name: Fail if bootstrap script is missing
+  ansible.builtin.fail:
+    msg: "Bootstrap script not found at {{ dotfiles_user_dest }}/{{ dotfiles_bootstrap_script }}"
+  when: not dotfiles_script_stat.stat.exists
+
+- name: Backup existing dotfiles if enabled
+  ansible.builtin.include_tasks: backup.yaml
+  when: dotfiles_backup_existing
+
+- name: Run dotfiles bootstrap script
+  ansible.builtin.shell:
+    cmd: |
+      set -e
+      export HOME="{{ dotfiles_user_home }}"
+      cd "{{ dotfiles_user_dest }}"
+      if [ "$(uname)" != "Darwin" ]; then
+        {{ dotfiles_bootstrap_script }} {{ 'remote' if dotfiles_bootstrap_remote else 'local' }}
+      else
+        {{ dotfiles_bootstrap_script }} {{ 'dev' if dotfiles_bootstrap_dev else 'remote' }}
+      fi
+  register: dotfiles_bootstrap_output
+  changed_when: dotfiles_bootstrap_output.rc == 0 and ('Stowing' in dotfiles_bootstrap_output.stdout or 'Linking' in dotfiles_bootstrap_output.stdout)
+  failed_when: dotfiles_bootstrap_output.rc != 0
+
+- name: Display bootstrap output
+  ansible.builtin.debug:
+    var: dotfiles_bootstrap_output.stdout_lines
+
+- name: Run custom scripts if specified
+  ansible.builtin.include_tasks: custom_scripts.yaml
+  when: dotfiles_custom_scripts | length > 0

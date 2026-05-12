@@ -1,0 +1,173 @@
+---
+# Keepalived variable validation
+- name: Validate required variables for keepalived role
+  ansible.builtin.assert:
+    that:
+      - keepalived_enabled is defined
+      - keepalived_enabled is boolean
+      - keepalived_interface is defined
+      - keepalived_interface | length > 0
+      - keepalived_router_id is defined
+      - keepalived_router_id | length > 0
+      - keepalived_priority is defined
+      - keepalived_priority is number
+      - keepalived_priority >= 1 and keepalived_priority <= 255
+      - keepalived_install_method in ['package', 'source']
+      - keepalived_config_dir is defined
+      - keepalived_config_dir | length > 0
+      - keepalived_config_file is defined
+      - keepalived_config_file | length > 0
+    fail_msg: |
+      ❌ Invalid keepalived configuration:
+      - keepalived_enabled: {{ keepalived_enabled | default('UNDEFINED') }} (must be boolean)
+      - keepalived_interface: {{ keepalived_interface | default('UNDEFINED') }} (must be non-empty string)
+      - keepalived_router_id: {{ keepalived_router_id | default('UNDEFINED') }} (must be non-empty string)
+      - keepalived_priority: {{ keepalived_priority | default('UNDEFINED') }} (must be 1-255)
+      - keepalived_install_method: {{ keepalived_install_method | default('UNDEFINED') }} (must be 'package' or 'source')
+      - keepalived_config_dir: {{ keepalived_config_dir | default('UNDEFINED') }} (must be non-empty string)
+      - keepalived_config_file: {{ keepalived_config_file | default('UNDEFINED') }} (must be non-empty string)
+    success_msg: "✅ All required keepalived variables validated successfully"
+
+- name: Validate VRRP instances configuration
+  ansible.builtin.assert:
+    that:
+      - item is defined
+      - item.name is defined
+      - item.name | length > 0
+      - item.state in ['MASTER', 'BACKUP', 'FAULT']
+      - item.interface is defined
+      - item.interface | length > 0
+      - item.virtual_router_id is defined
+      - item.virtual_router_id is number
+      - item.virtual_router_id >= 1 and item.virtual_router_id <= 255
+      - item.priority is defined
+      - item.priority is number
+      - item.priority >= 1 and item.priority <= 255
+      - item.advert_int is defined
+      - item.advert_int is number
+      - item.advert_int >= 1
+    fail_msg: |
+      ❌ Invalid VRRP instance configuration for {{ item.name | default('UNDEFINED') }}:
+      Required fields: name, state (MASTER/BACKUP/FAULT), interface,
+      virtual_router_id (1-255), priority (1-255), advert_int (>=1)
+    success_msg: "✅ VRRP instance {{ item.name }} configuration validated"
+  loop: "{{ keepalived_vrrp_instances }}"
+  when: keepalived_enabled and keepalived_vrrp_instances | length > 0
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+
+- name: Validate virtual servers configuration
+  ansible.builtin.assert:
+    that:
+      - item is defined
+      - item.delay_loop is defined
+      - item.delay_loop is number
+      - item.delay_loop >= 1
+      - item.lb_algo in ['rr', 'wrr', 'lc', 'wlc', 'sh', 'dh', 'lblc']
+      - item.lb_kind in ['NAT', 'DR', 'TUN']
+      - item.protocol in ['TCP', 'UDP']
+      - item.virtual_server is defined
+      - item.virtual_server | length > 0
+    fail_msg: |
+      ❌ Invalid virtual server configuration:
+      Required fields: delay_loop (>=1), lb_algo (rr/wrr/lc/wlc/sh/dh/lblc),
+      lb_kind (NAT/DR/TUN), protocol (TCP/UDP), virtual_server
+    success_msg: "✅ Virtual server configuration validated"
+  loop: "{{ keepalived_virtual_servers }}"
+  when: keepalived_enabled and keepalived_virtual_servers | length > 0
+  loop_control:
+    label: "{{ item.virtual_server | default('unnamed') }}"
+
+- name: Validate track scripts configuration
+  ansible.builtin.assert:
+    that:
+      - item is defined
+      - item.name is defined
+      - item.name | length > 0
+      - item.script is defined
+      - item.script | length > 0
+      - item.interval is defined
+      - item.interval is number
+      - item.interval >= 1
+    fail_msg: |
+      ❌ Invalid track script configuration for {{ item.name | default('UNDEFINED') }}:
+      Required fields: name, script, interval (>=1)
+    success_msg: "✅ Track script {{ item.name }} configuration validated"
+  loop: "{{ keepalived_track_scripts }}"
+  when: keepalived_enabled and keepalived_track_scripts | length > 0
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+
+- name: Validate authentication configuration
+  ansible.builtin.assert:
+    that:
+      - item.authentication is not defined or
+        (item.authentication.auth_type is defined and
+        item.authentication.auth_type in ['PASS', 'AH'] and
+        item.authentication.auth_pass is defined and
+        item.authentication.auth_pass | length >= 8)
+    fail_msg: |
+      ❌ Invalid authentication configuration for {{ item.name }}:
+      If authentication is defined, must include:
+      - auth_type: PASS or AH
+      - auth_pass: minimum 8 characters (use vault for passwords)
+    success_msg: "✅ Authentication configuration validated for {{ item.name }}"
+  loop: "{{ keepalived_vrrp_instances }}"
+  when: keepalived_enabled and keepalived_vrrp_instances | length > 0
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+
+- name: Validate email configuration
+  ansible.builtin.assert:
+    that:
+      - not keepalived_email_enabled or (
+        keepalived_email_from is defined and
+        keepalived_email_from | length > 0 and
+        keepalived_email_to is defined and
+        keepalived_email_to | length > 0 and
+        keepalived_email_smtp_server is defined and
+        keepalived_email_smtp_server | length > 0 and
+        keepalived_email_smtp_port is defined and
+        keepalived_email_smtp_port is number and
+        keepalived_email_smtp_port >= 1 and keepalived_email_smtp_port <= 65535
+        )
+    fail_msg: |
+      ❌ Invalid email configuration:
+      When keepalived_email_enabled is true, must provide:
+      - keepalived_email_from (non-empty)
+      - keepalived_email_to (non-empty list)
+      - keepalived_email_smtp_server (non-empty)
+      - keepalived_email_smtp_port (1-65535)
+    success_msg: "✅ Email configuration validated"
+  when: keepalived_enabled
+
+- name: Validate sysctl parameters
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name | length > 0
+      - item.value is defined
+      - item.value is number
+    fail_msg: |
+      ❌ Invalid sysctl parameter configuration:
+      Each item must have: name (non-empty string), value (number)
+    success_msg: "✅ Sysctl parameter {{ item.name }} validated"
+  loop: "{{ keepalived_sysctl_params }}"
+  when: keepalived_enabled and keepalived_sysctl_params | length > 0
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+
+- name: Display keepalived configuration summary
+  ansible.builtin.debug:
+    msg: |
+      📋 Keepalived Configuration Summary:
+      • Enabled: {{ keepalived_enabled }}
+      • Interface: {{ keepalived_interface }}
+      • Router ID: {{ keepalived_router_id }}
+      • Priority: {{ keepalived_priority }}
+      • Install Method: {{ keepalived_install_method }}
+      • VRRP Instances: {{ keepalived_vrrp_instances | length }}
+      • Virtual Servers: {{ keepalived_virtual_servers | length }}
+      • Track Scripts: {{ keepalived_track_scripts | length }}
+      • Email Notifications: {{ keepalived_email_enabled }}
+  when: keepalived_enabled

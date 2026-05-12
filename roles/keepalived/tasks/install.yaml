@@ -1,0 +1,160 @@
+---
+# Keepalived installation tasks
+- name: Check if keepalived is already installed
+  ansible.builtin.stat:
+    path: "/usr/sbin/keepalived"
+  register: keepalived_install_check
+  changed_when: false
+
+- name: Update package cache (Debian/Ubuntu)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  become: true
+
+- name: Update package cache (RedHat/CentOS)
+  ansible.builtin.yum:
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+  become: true
+
+- name: Install keepalived package (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: "keepalived{{ '=' + keepalived_version if keepalived_version != 'latest' else '' }}"
+    state: present
+    update_cache: false
+  when:
+    - ansible_os_family == "Debian"
+    - keepalived_install_method == "package"
+    - (not keepalived_install_check.stat.exists or keepalived_auto_update)
+  become: true
+  register: keepalived_package_install
+
+- name: Install keepalived package (RedHat/CentOS)
+  ansible.builtin.yum:
+    name: "keepalived{{ '-' + keepalived_version if keepalived_version != 'latest' else '' }}"
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - keepalived_install_method == "package"
+    - (not keepalived_install_check.stat.exists or keepalived_auto_update)
+  become: true
+  register: keepalived_package_install
+
+- name: Install required dependencies for keepalived
+  ansible.builtin.package:
+    name:
+      - iproute2
+      - net-tools
+      - procps
+    state: present
+  become: true
+  when: keepalived_install_method == "package"
+
+- name: Install build dependencies for source installation
+  ansible.builtin.package:
+    name:
+      - build-essential
+      - libssl-dev
+      - libnfnetlink-dev
+      - libnl-3-dev
+      - libnl-genl-3-dev
+      - libsnmp-dev
+      - iptables-dev
+    state: present
+  become: true
+  when: keepalived_install_method == "source"
+
+- name: Create temporary directory for source build
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: "_keepalived_build"
+  register: keepalived_build_dir
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+
+- name: Download keepalived source
+  ansible.builtin.get_url:
+    url: "https://www.keepalived.org/software/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}.tar.gz"
+    dest: "{{ keepalived_build_dir.path }}/keepalived.tar.gz"
+    mode: "0644"
+  register: keepalived_source_download
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+
+- name: Extract keepalived source
+  ansible.builtin.unarchive:
+    src: "{{ keepalived_build_dir.path }}/keepalived.tar.gz"
+    dest: "{{ keepalived_build_dir.path }}"
+    remote_src: true
+    creates: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+
+- name: Configure keepalived build
+  ansible.builtin.command:
+    cmd: "./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --runstatedir=/run"
+    chdir: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+
+- name: Build keepalived
+  ansible.builtin.command:
+    cmd: "make -j{{ ansible_processor_cores }}"
+    chdir: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+
+- name: Install keepalived from source
+  ansible.builtin.command:
+    cmd: "make install"
+    chdir: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+  become: true
+
+- name: Create systemd service file for source installation
+  ansible.builtin.template:
+    src: keepalived.service.j2
+    dest: "/etc/systemd/system/{{ keepalived_service_name }}.service"
+    mode: "0644"
+    owner: root
+    group: root
+  when:
+    - keepalived_install_method == "source"
+    - not keepalived_install_check.stat.exists
+  notify:
+    - Reload systemd
+    - Restart keepalived
+
+- name: Clean up build directory
+  ansible.builtin.file:
+    path: "{{ keepalived_build_dir.path }}"
+    state: absent
+  when:
+    - keepalived_install_method == "source"
+    - keepalived_build_dir.path is defined
+
+- name: Verify keepalived installation
+  ansible.builtin.command:
+    cmd: "keepalived --version"
+  register: keepalived_version_check
+  changed_when: false
+  failed_when: keepalived_version_check.rc != 0
+
+- name: Display keepalived version
+  ansible.builtin.debug:
+    msg: "✅ Keepalived installed successfully"
+  when: not keepalived_install_check.stat.exists or keepalived_package_install.changed
+
+- name: Show keepalived version if available
+  ansible.builtin.debug:
+    msg: "Version: {{ keepalived_version_check.stdout | default(keepalived_version_check.stderr | default('Unknown')) }}"
+  when: keepalived_version_check.stdout is defined or keepalived_version_check.stderr is defined

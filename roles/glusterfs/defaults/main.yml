@@ -1,0 +1,80 @@
+---
+# GlusterFS Role Configuration
+# Enable/disable GlusterFS installation and configuration
+glusterfs_enabled: false
+
+# Installation settings
+glusterfs_version: "latest"
+glusterfs_install_method: "package" # package or repository
+
+# Cluster configuration
+glusterfs_cluster_name: "gluster_cluster"
+glusterfs_volume_name: "gv_swarm"
+glusterfs_brick_dir: "/data/glusterfs/brick"
+glusterfs_mount_dir: "/mnt/glusterfs"
+glusterfs_replica_count: 3  # Default, will be overridden in tasks
+
+# Network settings
+glusterfs_bind_interface: "{{ ansible_default_ipv4.interface }}"
+# glusterfs_bind_address will be set in validate.yaml
+
+# Performance tuning
+glusterfs_performance_enabled: true
+glusterfs_server_quorum_ratio: 0.51
+glusterfs_network_frame_timeout: 1800
+glusterfs_ping_timeout: 42
+
+# Security settings
+glusterfs_enable_auth: true
+glusterfs_allow_insecure: false
+
+# Service management
+glusterfs_auto_start: true
+glusterfs_firewall_enabled: true
+
+# Paths and directories
+glusterfs_config_dir: "/etc/glusterfs"
+glusterfs_log_dir: "/var/log/glusterfs"
+glusterfs_data_dir: "/data/glusterfs"
+
+# File permissions
+glusterfs_dir_permissions: "0755"
+glusterfs_file_permissions: "0644"
+
+# Group name for cluster members (must be set in group_vars)
+glusterfs_group_name: ""
+
+# Volume options (key-value pairs)
+# Note: client.event-threads is deprecated in GlusterFS 7.x+
+glusterfs_volume_options:
+  performance.readdir-ahead: "on"
+  performance.read-ahead: "on"
+  performance.io-cache: "on"
+  performance.quick-read: "on"
+  performance.stat-prefetch: "on"
+  server.event-threads: "4"
+  storage.owner-uid: "0"
+  storage.owner-gid: "0"
+
+# Brick configuration
+glusterfs_create_brick_dir: true
+glusterfs_brick_device: "" # Leave empty to use directory, specify device for partition
+glusterfs_brick_filesystem: "xfs"
+glusterfs_brick_mount_options: "noatime,nodiratime"
+
+# Firewall ports to open
+glusterfs_firewall_ports:
+  - "111/tcp" # Portmapper
+  - "111/udp" # Portmapper
+  - "24007/tcp" # Gluster Daemon
+  - "24008/tcp" # Gluster Management
+  - "24009/tcp" # Gluster Brick
+  - "38465:38469/tcp" # Gluster Brick range
+  - "49152:49161/tcp" # Gluster Brick range
+
+# Monitoring and logging
+glusterfs_log_level: "INFO"
+glusterfs_audit_logging: false
+
+# Backup settings
+glusterfs_backup_config: true

@@ -1,0 +1,32 @@
+---
+# Traefik reverse proxy deployment
+- name: Create Traefik access log directory on manager nodes
+  ansible.builtin.file:
+    path: "{{ traefik_access_log_path }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+  when:
+    - traefik_access_log_path | default('') | length > 0
+    - docker_host_swarm_role | default('') == 'manager'
+
+- name: Import Traefik validation tasks
+  ansible.builtin.import_tasks: validate.yaml
+
+
+- name: Import Traefik installation tasks
+  ansible.builtin.import_tasks: install.yaml
+
+  when: traefik_enabled
+
+- name: Import Traefik secrets management tasks
+  ansible.builtin.import_tasks: secrets.yaml
+
+  when: traefik_enabled
+
+- name: Import Traefik configuration tasks
+  ansible.builtin.import_tasks: configure.yaml
+
+  when: traefik_enabled

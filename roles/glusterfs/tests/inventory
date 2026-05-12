@@ -1,0 +1,5 @@
+---
+# Test inventory for GlusterFS role
+[glusterfs_nodes]
+gluster-test-01 ansible_host=127.0.0.1 ansible_connection=local
+gluster-test-02 ansible_host=127.0.0.1 ansible_connection=local

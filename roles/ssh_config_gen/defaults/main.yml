@@ -1,0 +1,4 @@
+---
+ssh_config_gen_output: ""
+ssh_config_gen_main: "~/.ssh/config"
+ssh_config_gen_extra_hosts: []

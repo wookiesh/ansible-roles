@@ -1,0 +1,28 @@
+---
+galaxy_info:
+  role_name: ssh_config_gen
+  author: your_name
+  description: Génère un fichier SSH config (~/.ssh/config) basé sur l'inventaire Ansible.
+  company: your_company
+  license: MIT
+  min_ansible_version: "2.9"
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: MacOSX
+      versions:
+        - all
+
+  galaxy_tags:
+    - ssh
+    - config
+    - client
+    - automation
+    - infrastructure
+
+dependencies: []

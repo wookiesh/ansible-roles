@@ -1,0 +1,62 @@
+---
+- name: Skip if create_admin_users is disabled
+  ansible.builtin.meta: end_host
+  when: not create_admin_users_enabled
+
+- name: Ensure sudo group exists
+  ansible.builtin.group:
+    name: sudo
+    state: present
+  become: true
+
+- name: Create admin users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    comment: "{{ item.full_name | default(omit) }}"
+    shell: "{{ item.shell | default(create_admin_users_shell) }}"
+    groups: "{{ item.groups | default(create_admin_users_default_groups) }}"
+    append: true
+    create_home: true
+  loop: "{{ create_admin_users_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+
+- name: Ensure .ssh directory exists for each user
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}/.ssh"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0700"
+  loop: "{{ create_admin_users_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+
+- name: Fetch SSH keys from git provider
+  ansible.builtin.uri:
+    url: "{{ create_admin_users_git_url }}/{{ item.git_user }}.keys"
+    return_content: true
+  register: create_admin_users_git_keys
+  loop: "{{ create_admin_users_list }}"
+  loop_control:
+    label: "{{ item.git_user }}"
+  delegate_to: localhost
+  run_once: true
+  check_mode: false
+
+- name: Authorize SSH keys
+  ansible.posix.authorized_key:
+    user: "{{ item.item.name }}"
+    key: "{{ item.content }}"
+    state: present
+    exclusive: false
+  loop: "{{ create_admin_users_git_keys.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  become: true
+
+- name: Configure passwordless sudo via SSH agent auth
+  ansible.builtin.include_tasks: pam_sudo.yaml
+  when: create_admin_users_pam_sudo_enabled
