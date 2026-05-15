@@ -27,7 +27,19 @@ Designed to be consumed by multiple projects via `requirements.yml`.
 
 ## Usage
 
-Add to your project's `requirements.yml`:
+### Option A — `ansible.cfg` (local clone)
+
+Clone this repo alongside your project and point `roles_path` at it:
+
+```ini
+# ansible.cfg
+[defaults]
+roles_path = ../ansible-roles/roles
+```
+
+Roles are available immediately with no install step. Useful for active development or monorepo-style layouts.
+
+### Option B — `requirements.yml` (pinned version)
 
 ```yaml
 roles:
@@ -36,8 +48,6 @@ roles:
     version: v1.0.0
     scm: git
 ```
-
-Then install:
 
 ```bash
 ansible-galaxy install -r requirements.yml
