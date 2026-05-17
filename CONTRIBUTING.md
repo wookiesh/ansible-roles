@@ -13,7 +13,9 @@ git clone https://github.com/wookiesh/ansible-roles ../ansible-roles
 
 ## Role development standards
 
-See [docs/ROLE_DEVELOPMENT.md](docs/ROLE_DEVELOPMENT.md) for the full guide covering structure, idempotence, variable naming, testing, and meta requirements.
+See [docs/ROLE_DEVELOPMENT.md](docs/ROLE_DEVELOPMENT.md) for the full guide covering structure, idempotence, variable naming, and meta requirements.
+
+See [docs/TESTING.md](docs/TESTING.md) for testing standards: linting, idempotence, Molecule, and CI.
 
 ## Adding or modifying a role
 
