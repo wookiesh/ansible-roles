@@ -9,12 +9,17 @@
     state: present
   become: true
 
+- name: Gather existing groups
+  ansible.builtin.getent:
+    database: group
+  become: true
+
 - name: Create admin users
   ansible.builtin.user:
     name: "{{ item.name }}"
     comment: "{{ item.full_name | default(omit) }}"
     shell: "{{ item.shell | default(create_admin_users_shell) }}"
-    groups: "{{ item.groups | default(create_admin_users_default_groups) }}"
+    groups: "{{ (item.groups | default(create_admin_users_default_groups)) | select('in', ansible_facts.getent_group) | list }}"
     append: true
     create_home: true
   loop: "{{ create_admin_users_list }}"
