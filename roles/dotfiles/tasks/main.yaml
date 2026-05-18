@@ -1,7 +1,6 @@
 ---
-- name: Fail if dotfiles management is disabled
-  ansible.builtin.fail:
-    msg: "Dotfiles management is disabled on this host"
+- name: Skip if dotfiles is disabled
+  ansible.builtin.meta: end_host
   when: not dotfiles_enabled
 
 - name: Fail if required variables are not set

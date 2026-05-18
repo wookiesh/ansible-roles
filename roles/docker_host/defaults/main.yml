@@ -40,7 +40,7 @@ docker_host_daemon_config:
   # #   - "https://mirror.gcr.io"
 
 # Security settings
-docker_host_user: "{{ admin_user_name | default('ansible_user') }}"
+docker_host_user: "{{ admin_user_name | default(ansible_user, true) }}"
 docker_host_add_user_to_group: true
 docker_host_group_members: []
 docker_host_daemon_json: {}

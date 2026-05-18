@@ -153,8 +153,7 @@
       labels:
         - traefik.enable=true
         - traefik.http.routers.myapp.rule=Host(`myapp.{{ traefik_domain | regex_replace('^traefik\\.', '') }}`)
-         - traefik.http.routers.myapp.tls.certresolver={{ traefik_dynamic_config.tls.stores.default.defaultCertificate.certFile |
-           regex_replace('.*/([^/]+)\\.crt', '\\1') }}
+        - traefik.http.routers.myapp.tls.certresolver={{ traefik_static_config.certificatesResolvers | default({'myresolver': {}}) | first }}
         - traefik.http.services.myapp.loadbalancer.server.port=8080
 
       Network connection:

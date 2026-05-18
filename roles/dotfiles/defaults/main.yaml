@@ -1,5 +1,5 @@
 ---
-dotfiles_enabled: true
+dotfiles_enabled: false
 dotfiles_user: ""
 dotfiles_repo: ""
 dotfiles_dest: "dev/dotfiles"
