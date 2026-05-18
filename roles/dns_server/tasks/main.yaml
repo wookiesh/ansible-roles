@@ -1,0 +1,6 @@
+---
+- name: Import DNS server installation tasks
+  ansible.builtin.import_tasks: install.yaml
+
+- name: Import DNS server service tasks
+  ansible.builtin.import_tasks: service.yaml

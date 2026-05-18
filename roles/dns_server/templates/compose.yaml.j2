@@ -1,0 +1,25 @@
+networks:
+  {{ dns_server_network }}:
+    external: true
+
+services:
+  technitium:
+    image: {{ dns_server_image }}
+    container_name: technitium
+    hostname: {{ inventory_hostname }}
+    restart: unless-stopped
+    ports:
+      - "{{ dns_server_bind_ip }}:53:53/udp"
+      - "{{ dns_server_bind_ip }}:53:53/tcp"
+    volumes:
+      - {{ dns_server_data_dir }}:/etc/dns
+    environment:
+      DNS_SERVER_DOMAIN: "{{ dns_server_domain }}"
+      TZ: "{{ dns_server_timezone }}"
+    networks:
+      - {{ dns_server_network }}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.technitium.rule=Host(`{{ dns_server_ui_domain }}`)
+      - traefik.http.routers.technitium.tls=true
+      - traefik.http.services.technitium.loadbalancer.server.port={{ dns_server_ui_port }}

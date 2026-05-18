@@ -1,6 +1,8 @@
+{% if traefik_acme_enabled | default(false) %}
 volumes:
   letsencrypt:
 
+{% endif %}
 networks:
   {{ traefik_network_name }}:
     external: true
@@ -18,13 +20,18 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% if traefik_acme_enabled | default(false) %}
       - letsencrypt:/letsencrypt
-      - {{ traefik_config_dir }}/dynamic.yaml:/etc/traefik/dynamic.yaml
+{% endif %}
+{% if traefik_tls_cert_dir | default('') %}
+      - {{ traefik_tls_cert_dir }}:/certs:ro
+{% endif %}
+      - {{ traefik_config_dir }}/dynamic:/etc/traefik/dynamic
       - {{ traefik_config_dir }}/static.yaml:/etc/traefik/traefik.yaml
 {% if traefik_access_log_path %}
       - {{ traefik_access_log_path }}:{{ traefik_access_log_path }}
 {% endif %}
-    {% if traefik_port_mode == "host" %}
+{% if traefik_port_mode == "host" %}
     ports:
       - target: 80
         published: 80
@@ -47,6 +54,8 @@ services:
 {% endif %}
     networks:
       - {{ traefik_network_name }}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - TZ={{ traefik_environment.TZ }}
       - CLOUDFLARE_DNS_API_TOKEN={{ traefik_environment.CLOUDFLARE_DNS_API_TOKEN }}
@@ -54,7 +63,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.traefik.rule=Host(`{{ traefik_domain }}`)
       - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.routers.traefik.tls.certresolver={{ traefik_static_config.certificatesResolvers | first | first }}
+{% if traefik_static_config.certificatesResolvers is defined %}
+      - traefik.http.routers.traefik.tls.certresolver={{ traefik_static_config.certificatesResolvers | first }}
+{% else %}
+      - traefik.http.routers.traefik.tls=true
+{% endif %}
       - "wud.tag.include=^v[0-9]+\\.[0-9]+\\.[0-9]+$"
 {% if traefik_healthcheck_enabled %}
     healthcheck:
@@ -75,7 +88,11 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.whoami.rule=Host(`{{ traefik_whoami_domain }}`)
-      - traefik.http.routers.whoami.tls.certresolver={{ traefik_static_config.certificatesResolvers | first | first }}
+{% if traefik_static_config.certificatesResolvers is defined %}
+      - traefik.http.routers.whoami.tls.certresolver={{ traefik_static_config.certificatesResolvers | first }}
+{% else %}
+      - traefik.http.routers.whoami.tls=true
+{% endif %}
 {% endif %}
 
 {% if traefik_visualizer_enabled %}
@@ -89,6 +106,10 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.visualizer.rule=Host(`{{ traefik_visualizer_domain }}`)
-      - traefik.http.routers.visualizer.tls.certresolver={{ traefik_static_config.certificatesResolvers | first | first }}
+{% if traefik_static_config.certificatesResolvers is defined %}
+      - traefik.http.routers.visualizer.tls.certresolver={{ traefik_static_config.certificatesResolvers | first }}
+{% else %}
+      - traefik.http.routers.visualizer.tls=true
+{% endif %}
       - traefik.http.services.visualizer.loadbalancer.server.port=8080
 {% endif %}

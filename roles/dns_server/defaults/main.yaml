@@ -1,0 +1,16 @@
+---
+dns_server_image: "technitium/dns-server:13"
+
+dns_server_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/technitium"
+dns_server_data_dir: "{{ dns_server_install_dir }}/data"
+dns_server_compose_file: "{{ dns_server_install_dir }}/compose.yaml"
+
+# Bind DNS port to the host's main IP to avoid conflict with systemd-resolved stub (127.0.0.53:53)
+dns_server_bind_ip: "{{ ansible_host }}"
+dns_server_ui_port: 5380
+
+dns_server_domain: "{{ inventory_hostname }}.{{ server_domain | default('ana.lu') }}"
+dns_server_ui_domain: "technitium.{{ inventory_hostname }}.ops.ana.lu"
+
+dns_server_timezone: "{{ timezone | default('Europe/Luxembourg') }}"
+dns_server_network: "{{ traefik_network_name | default('traefik_public') }}"

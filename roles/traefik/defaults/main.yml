@@ -86,5 +86,9 @@ traefik_log_rotate_frequency: "daily"
 traefik_log_rotate_keep: 7
 traefik_log_rotate_maxsize: "100M"
 
+# File-based TLS (compose mode with internal certs, no ACME)
+traefik_acme_enabled: false
+traefik_tls_cert_dir: "" # host path mounted at /certs:ro inside the container
+
 # Traefik static configuration (variable-based approach)
 traefik_static_config: {}

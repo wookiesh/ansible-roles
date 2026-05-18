@@ -1,0 +1,27 @@
+---
+- name: Create Technitium directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  loop:
+    - "{{ dns_server_install_dir }}"
+    - "{{ dns_server_data_dir }}"
+  become: true
+
+- name: Create Traefik network
+  community.docker.docker_network:
+    name: "{{ dns_server_network }}"
+    driver: bridge
+
+- name: Deploy Technitium compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ dns_server_compose_file }}"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  notify: restart technitium
+  become: true
