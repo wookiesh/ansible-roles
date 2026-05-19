@@ -17,6 +17,21 @@ See [docs/ROLE_DEVELOPMENT.md](docs/ROLE_DEVELOPMENT.md) for the full guide cove
 
 See [docs/TESTING.md](docs/TESTING.md) for testing standards: linting, idempotence, Molecule, and CI.
 
+## Role design principles
+
+- **No `xxx_enabled` gate flag.** Roles run unconditionally. The caller controls targeting via `hosts:` in the playbook.
+- **Feature flags are fine** for optional behaviour within a role (`docker_host_swarm_enabled`, `traefik_acme_enabled`, etc.) — they don't gate the role, they select a code path.
+- **`become: true` at task level only**, never at play level. Only the tasks that actually write root-owned files or install packages need it.
+- **Service directory ownership**: `owner: root, group: docker, mode: 2775`.
+
+### Per-application roles (Docker services)
+
+New Docker application roles follow the `portainer`/`beszel`/`uptimekuma` pattern:
+- Auto-detect deployment mode from `docker_host_swarm_enabled` in defaults
+- Two templates: `compose.yaml.j2` (standalone) and `stack.yaml.j2` (swarm)
+- Stack deploy task uses `run_once: true, delegate_to: "{{ docker_swarm_manager }}"`
+- No `xxx_enabled` flag — the role is assigned via `hosts:` in site.yaml
+
 ## Adding or modifying a role
 
 1. Follow the structure in `docs/ROLE_DEVELOPMENT.md`
