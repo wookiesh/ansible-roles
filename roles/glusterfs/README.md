@@ -20,7 +20,6 @@ This role installs and configures GlusterFS distributed storage with automatic c
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `glusterfs_enabled` | boolean | `true` | Enable GlusterFS installation and configuration |
 | `glusterfs_cluster_name` | string | `"gluster_cluster"` | Name of GlusterFS cluster |
 | `glusterfs_volume_name` | string | `"gv_swarm"` | Name of GlusterFS volume |
 | `glusterfs_group_name` | string | `""` (required) | Ansible group containing cluster nodes |
@@ -73,7 +72,6 @@ This role installs and configures GlusterFS distributed storage with automatic c
   hosts: glusterfs_nodes
   become: true
   vars:
-    glusterfs_enabled: true
     glusterfs_cluster_name: "storage_cluster"
     glusterfs_volume_name: "shared_storage"
     glusterfs_group_name: "glusterfs_nodes"
@@ -89,7 +87,6 @@ This role installs and configures GlusterFS distributed storage with automatic c
   hosts: glusterfs_nodes
   become: true
   vars:
-    glusterfs_enabled: true
     glusterfs_cluster_name: "production_storage"
 glusterfs_volume_name: "gv_swarm"
     glusterfs_group_name: "glusterfs_nodes"  # Explicit group name

@@ -21,7 +21,6 @@ structure (GNU Stow, symlinks, custom scripts).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `dotfiles_enabled` | `true` | Enable/disable the role |
 | `dotfiles_dest` | `"dev/dotfiles"` | Clone path relative to the user's home directory |
 | `dotfiles_version` | `"main"` | Git branch/tag/commit to checkout |
 | `dotfiles_force_update` | `false` | Force update existing repository |
@@ -54,20 +53,20 @@ structure (GNU Stow, symlinks, custom scripts).
 ## Example Playbook
 
 ```yaml
-- hosts: workstations
-  become: true
-  vars:
-    dotfiles_user: "alice"
-    dotfiles_repo: "https://github.com/yourusername/dotfiles.git"
-    dotfiles_version: "main"
-    dotfiles_backup_existing: true
+- hosts: managed_servers
   roles:
     - role: dotfiles
+      become: true
       become_user: "{{ dotfiles_user }}"
+      vars:
+        dotfiles_user: "alice"
+        dotfiles_repo: "https://github.com/yourusername/dotfiles.git"
+        dotfiles_version: "main"
+        dotfiles_backup_existing: true
 ```
 
-> `become: true` is required at play level. The role elevates to root internally for
-> package installation and user info lookup; all other tasks run as `dotfiles_user`.
+> `become: true` and `become_user` are set at the role level, not the play level.
+> The role elevates to root internally for package installation; all other tasks run as `dotfiles_user`.
 
 ## Repository Structure
 

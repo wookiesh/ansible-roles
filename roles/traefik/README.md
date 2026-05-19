@@ -34,7 +34,6 @@ This role deploys and configures Traefik as a reverse proxy for Docker container
 ## Role Variables
 
 ### Main Configuration
-- `traefik_enabled`: Enable Traefik deployment (default: false)
 - `traefik_version`: Traefik version to deploy (default: "v3.6.2")
 - `traefik_domain`: Main domain for Traefik dashboard (default: "{{ vault_traefik_domain }}")
 - `traefik_deployment_mode`: Deployment mode - "compose" or "swarm" (auto-detected based on Docker Swarm)
@@ -164,67 +163,46 @@ Logrotate uses `copytruncate` — no signal to the container needed.
 
 ### Docker Compose Mode
 ```yaml
-- hosts: web_servers
-  become: true
+- hosts: dns_servers
   roles:
-    - role: docker_host
-      vars:
-        docker_host_enabled: true
-        docker_host_services_root: "/opt/docker"
     - role: traefik
       vars:
-        traefik_enabled: true
         traefik_domain: "traefik.example.com"
-        vault_cloudflare_dns_api_token: "{{ vault_cloudflare_dns_api_token }}"
-        vault_letsencrypt_email: "admin@example.com"
 ```
 
 ### Docker Swarm Mode
 ```yaml
 - hosts: swarm_managers
-  become: true
   roles:
-    - role: docker_host
-      vars:
-        docker_host_enabled: true
-        docker_host_swarm_enabled: true
-        docker_host_swarm_role: "manager"
     - role: traefik
       vars:
-        traefik_enabled: true
         traefik_deployment_mode: "swarm"
         traefik_swarm_mode: "replicated"
         traefik_swarm_replicas: 3
         traefik_swarm_placement_constraints:
           - "node.role == manager"
         traefik_domain: "traefik.example.com"
-        vault_cloudflare_dns_api_token: "{{ vault_cloudflare_dns_api_token }}"
-        vault_letsencrypt_email: "admin@example.com"
 ```
 
 ### Port Mode Configuration
 
 #### Host Mode (Direct Port Binding)
 ```yaml
-- hosts: web_servers
-  become: true
+- hosts: swarm_managers
   roles:
     - role: traefik
       vars:
-        traefik_enabled: true
-        traefik_port_mode: "host"  # Direct port binding
+        traefik_port_mode: "host"
         traefik_domain: "traefik.example.com"
 ```
 
-#### Ingress Mode (Default - Traefik Managed)
+#### Ingress Mode (Default)
 ```yaml
-- hosts: web_servers
-  become: true
+- hosts: swarm_managers
   roles:
     - role: traefik
       vars:
-        traefik_enabled: true
-        traefik_port_mode: "ingress"  # Default behavior
+        traefik_port_mode: "ingress"
         traefik_domain: "traefik.example.com"
 ```
 
@@ -252,7 +230,7 @@ web_servers:
       traefik_domain: "traefik.example.com"
     web02:
       ansible_host: 192.168.1.11
-      traefik_enabled: false
+      traefik_domain: "traefik.example.com"
 ```
 
 ### Docker Swarm Mode
@@ -262,13 +240,11 @@ swarm_managers:
     manager01:
       ansible_host: 10.0.1.10
       docker_host_swarm_role: "manager"
-      traefik_enabled: true
       traefik_deployment_mode: "swarm"
       traefik_domain: "traefik.example.com"
     manager02:
       ansible_host: 10.0.1.11
       docker_host_swarm_role: "manager"
-      traefik_enabled: false  # Only enable on one manager for HA
 ```
 
 ## Tags

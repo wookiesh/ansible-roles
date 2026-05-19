@@ -14,7 +14,6 @@ For creating named team accounts (fetching SSH keys from a git provider), use th
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `admin_user_enabled` | `true` | Enable/disable the role |
 | `admin_user_name` | `""` | Username — **required**, no default |
 | `admin_user_shell` | `/bin/bash` | Default shell |
 | `admin_user_groups` | `["sudo"]` | Groups to add user to |

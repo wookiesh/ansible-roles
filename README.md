@@ -5,25 +5,42 @@ Designed to be consumed by multiple projects via `requirements.yml`.
 
 ## Roles
 
+Roles have no `xxx_enabled` gate flag — they run unconditionally when assigned.
+Use `hosts:` in your playbook to control which hosts a role runs on.
+
+### Infrastructure
+
 | Role | Description |
 |------|-------------|
 | [`admin_user`](roles/admin_user/) | Create and configure a single bootstrap/recovery admin user |
-| [`alloy`](roles/alloy/) | Grafana Alloy observability agent for Docker Swarm |
 | [`create_admin_users`](roles/create_admin_users/) | Create named admin users with SSH keys fetched from a git provider |
 | [`docker_host`](roles/docker_host/) | Install and configure Docker with security best practices and Swarm support |
-| [`docker_stacks`](roles/docker_stacks/) | Deploy and manage Docker Compose and Docker Swarm stacks |
 | [`dotfiles`](roles/dotfiles/) | Install and configure dotfiles using GNU Stow |
 | [`glusterfs`](roles/glusterfs/) | Install and configure GlusterFS distributed storage |
 | [`keepalived`](roles/keepalived/) | Keepalived high availability and virtual IP management |
-| [`nut_client`](roles/nut_client/) | Configure NUT client for UPS monitoring |
-| [`nut_server`](roles/nut_server/) | Install and configure NUT server for UPS management |
 | [`prompt_starship`](roles/prompt_starship/) | Install and configure the Starship shell prompt |
 | [`server`](roles/server/) | Configure automatic updates for servers |
 | [`smtp`](roles/smtp/) | Configure Postfix as null client or relay host |
 | [`ssh`](roles/ssh/) | Harden SSH server configuration |
 | [`ssh_config_gen`](roles/ssh_config_gen/) | Generate `~/.ssh/config` entries from Ansible inventory |
-| [`tailscale`](roles/tailscale/) | Install and configure Tailscale VPN |
+| [`tailscale`](roles/tailscale/) | Install and configure Tailscale VPN (`tailscale_enabled` flag kept — no hosts yet) |
 | [`traefik`](roles/traefik/) | Traefik reverse proxy for Docker containers and Swarm |
+
+### Observability
+
+| Role | Description |
+|------|-------------|
+| [`alloy`](roles/alloy/) | Grafana Alloy observability agent for Docker Swarm |
+
+### Applications (per-app roles, replacing docker_stacks)
+
+| Role | Description |
+|------|-------------|
+| [`portainer`](roles/portainer/) | Portainer CE management UI — compose or swarm stack, auto-detected |
+| [`beszel`](roles/beszel/) | Beszel monitoring hub — compose or swarm stack, auto-detected |
+| [`uptimekuma`](roles/uptimekuma/) | Uptime Kuma status page — compose or swarm stack, auto-detected |
+| [`dns_server`](roles/dns_server/) | Technitium DNS server — compose mode |
+| [`docker_stacks`](roles/docker_stacks/) | ~~DEPRECATED~~ — replaced by per-app roles above |
 
 ## Usage
 

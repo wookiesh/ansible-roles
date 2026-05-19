@@ -1,5 +1,9 @@
 # Docker Stacks Role
 
+> **DEPRECATED** — This role is replaced by per-application roles (`portainer`, `beszel`, `uptimekuma`, `dns_server`).
+> Each application now has its own role following the `dns_server` pattern.
+> This role will be removed once all stacks have been migrated to per-app roles.
+
 ## Description
 
 Simplified role for deploying existing Docker Compose and Docker Swarm stack files. This role focuses on copying and deploying pre-existing YAML stack files rather than generating complex templates.

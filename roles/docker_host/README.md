@@ -13,7 +13,6 @@
 ## Role Variables
 
 ### Docker Installation
-- `docker_host_enabled`: Enable Docker installation (default: true)
 - `docker_host_install_method`: Installation method - script or repository (default: "script")
 - `docker_host_version`: Docker version to install (default: "latest")
 - `docker_host_auto_update`: Allow automatic updates (default: false)
@@ -44,11 +43,9 @@
 ## Example Playbook
 
 ```yaml
-- hosts: docker_hosts
+- hosts: swarm_nodes
   roles:
     - role: docker_host
-      vars:
-        docker_host_enabled: true
 ```
 
 ## Example Inventory

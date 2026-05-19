@@ -18,11 +18,9 @@ Alloy is the successor to Grafana Agent / Promtail. It uses River syntax (`.allo
 
 - `docker_host` role
 
-## Opt-in
+## Integration with Traefik
 
-This role is disabled by default. Set `alloy_enabled: true` in your host_vars to activate it.
-
-**Dependency on Traefik role:** Alloy reads log files written by Traefik. You must also enable file-based access logging in the Traefik role:
+Alloy reads log files written by Traefik. Enable file-based access logging in the Traefik role:
 
 ```yaml
 # In host_vars — Traefik side
@@ -35,7 +33,6 @@ traefik_static_config:
   # ... rest of your config
 
 # In host_vars — Alloy side
-alloy_enabled: true
 alloy_traefik_log_path: "{{ traefik_access_log_path }}"
 ```
 
@@ -43,7 +40,6 @@ alloy_traefik_log_path: "{{ traefik_access_log_path }}"
 
 ### Main
 
-- `alloy_enabled`: Enable Alloy deployment (default: `false`)
 - `alloy_version`: Alloy image tag (default: `v1.7.4` — check for latest)
 
 ### Paths

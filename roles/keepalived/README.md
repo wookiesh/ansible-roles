@@ -25,7 +25,6 @@ A comprehensive Ansible role for deploying and managing Keepalived high availabi
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `keepalived_enabled` | boolean | `false` | Enable keepalived installation and configuration |
 | `keepalived_install_method` | string | `"package"` | Installation method: `package` or `source` |
 | `keepalived_version` | string | `"latest"` | Keepalived version to install |
 | `keepalived_interface` | string | `"eth0"` | Network interface for VRRP |
@@ -133,7 +132,6 @@ keepalived_email_smtp_tls: true
   hosts: load_balancers
   become: true
   vars:
-    keepalived_enabled: true
     keepalived_interface: "eth0"
     keepalived_vrrp_instances:
       - name: "VI_WEB"
@@ -175,7 +173,6 @@ keepalived_email_smtp_tls: true
   hosts: load_balancers
   become: true
   vars:
-    keepalived_enabled: true
     keepalived_vrrp_instances:
       - name: "VI_LB"
         state: "{{ 'MASTER' if inventory_hostname == 'lb01' else 'BACKUP' }}"
@@ -320,8 +317,7 @@ journalctl -u keepalived -f
     - role: traefik
     - role: keepalived
       vars:
-        keepalived_enabled: true
-        keepalived_vrrp_instances:
+            keepalived_vrrp_instances:
           - name: "VI_TRAEFIK"
             state: "{{ 'MASTER' if inventory_hostname == 'docker01' else 'BACKUP' }}"
             virtual_ipaddress:
