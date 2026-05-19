@@ -1,6 +1,7 @@
 ---
-# Docker Stacks Role - Simplified deployment for existing YAML files
-# Only deploys existing Docker Compose/Swarm stack files
+# DEPRECATED — replaced by per-application roles (portainer, beszel, uptimekuma, etc.)
+# Each application now has its own role following the dns_server pattern.
+# This role will be removed once all stacks have been migrated.
 
 - name: Validate basic Docker stacks configuration
   ansible.builtin.assert:
