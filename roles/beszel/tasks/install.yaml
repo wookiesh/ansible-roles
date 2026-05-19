@@ -1,0 +1,21 @@
+---
+- name: Create Beszel install directory
+  ansible.builtin.file:
+    path: "{{ beszel_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Deploy Beszel stack/compose file
+  ansible.builtin.template:
+    src: "{{ beszel_deployment_mode }}.yaml.j2"
+    dest: "{{ beszel_install_dir }}/stack.yaml"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  run_once: "{{ beszel_deployment_mode == 'stack' }}"
+  delegate_to: "{{ docker_swarm_manager if beszel_deployment_mode == 'stack' else inventory_hostname }}"
+  notify: deploy beszel

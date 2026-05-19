@@ -1,0 +1,16 @@
+---
+- name: Deploy Beszel (swarm stack)
+  ansible.builtin.command: docker stack deploy -c stack.yaml beszel
+  args:
+    chdir: "{{ beszel_install_dir }}"
+  register: beszel_stack_result
+  changed_when: beszel_stack_result.stdout | regex_search('(Updating|Creating)')
+  run_once: true
+  delegate_to: "{{ docker_swarm_manager }}"
+  when: beszel_deployment_mode == "stack"
+
+- name: Deploy Beszel (compose)
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_install_dir }}"
+    state: present
+  when: beszel_deployment_mode == "compose"

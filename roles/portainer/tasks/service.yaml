@@ -1,0 +1,16 @@
+---
+- name: Deploy Portainer (swarm stack)
+  ansible.builtin.command: docker stack deploy -c stack.yaml portainer
+  args:
+    chdir: "{{ portainer_install_dir }}"
+  register: portainer_stack_result
+  changed_when: portainer_stack_result.stdout | regex_search('(Updating|Creating)')
+  run_once: true
+  delegate_to: "{{ docker_swarm_manager }}"
+  when: portainer_deployment_mode == "stack"
+
+- name: Deploy Portainer (compose)
+  community.docker.docker_compose_v2:
+    project_src: "{{ portainer_install_dir }}"
+    state: present
+  when: portainer_deployment_mode == "compose"

@@ -1,0 +1,6 @@
+---
+- name: Import Portainer installation tasks
+  ansible.builtin.import_tasks: install.yaml
+
+- name: Import Portainer service tasks
+  ansible.builtin.import_tasks: service.yaml

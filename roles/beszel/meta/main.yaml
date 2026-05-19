@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: wookiesh
+  description: Beszel infrastructure monitoring hub (swarm stack or compose)
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+
+dependencies: []

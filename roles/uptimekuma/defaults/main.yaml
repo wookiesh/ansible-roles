@@ -1,0 +1,6 @@
+---
+uptimekuma_image: "louislam/uptime-kuma:2"
+uptimekuma_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/uptimekuma"
+uptimekuma_deployment_mode: "{{ 'stack' if docker_host_swarm_enabled | default(false) else 'compose' }}"
+uptimekuma_domain: "uptime.{{ server_domain | default('ana.lu') }}"
+uptimekuma_network: "{{ traefik_network_name | default('traefik_public') }}"

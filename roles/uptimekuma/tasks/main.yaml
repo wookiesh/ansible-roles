@@ -1,0 +1,6 @@
+---
+- name: Import Uptime Kuma installation tasks
+  ansible.builtin.import_tasks: install.yaml
+
+- name: Import Uptime Kuma service tasks
+  ansible.builtin.import_tasks: service.yaml

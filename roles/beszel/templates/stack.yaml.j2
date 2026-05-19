@@ -1,0 +1,36 @@
+services:
+  hub:
+    image: {{ beszel_image }}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - {{ beszel_network }}
+    volumes:
+      - hub_data:/beszel_data
+      - hub_socket:/beszel_socket
+    environment:
+      APP_URL: https://{{ beszel_domain }}
+    healthcheck:
+      test: ['CMD', '/beszel', 'health', '--url', 'http://localhost:8090']
+      start_period: 5s
+      interval: 120s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.hostname == {{ beszel_swarm_placement_node }}
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.beszel-hub.rule=Host(`{{ beszel_domain }}`)
+        - traefik.http.routers.beszel-hub.entrypoints=websecure
+        - traefik.http.services.beszel-hub.loadbalancer.server.port=8090
+
+networks:
+  {{ beszel_network }}:
+    external: true
+
+volumes:
+  hub_data:
+  hub_socket:

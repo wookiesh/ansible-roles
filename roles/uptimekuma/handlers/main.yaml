@@ -1,0 +1,8 @@
+---
+- name: deploy uptimekuma
+  ansible.builtin.command: docker stack deploy -c stack.yaml uptimekuma
+  args:
+    chdir: "{{ uptimekuma_install_dir }}"
+  run_once: true
+  delegate_to: "{{ docker_swarm_manager }}"
+  when: uptimekuma_deployment_mode == "stack"

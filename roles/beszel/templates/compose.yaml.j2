@@ -1,0 +1,25 @@
+networks:
+  {{ beszel_network }}:
+    external: true
+
+services:
+  hub:
+    image: {{ beszel_image }}
+    container_name: beszel-hub
+    restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - {{ beszel_network }}
+    volumes:
+      - hub_data:/beszel_data
+    environment:
+      APP_URL: https://{{ beszel_domain }}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.beszel.rule=Host(`{{ beszel_domain }}`)
+      - traefik.http.routers.beszel.tls=true
+      - traefik.http.services.beszel.loadbalancer.server.port=8090
+
+volumes:
+  hub_data:

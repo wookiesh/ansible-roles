@@ -1,0 +1,21 @@
+---
+- name: Create Portainer install directory
+  ansible.builtin.file:
+    path: "{{ portainer_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Deploy Portainer stack/compose file
+  ansible.builtin.template:
+    src: "{{ portainer_deployment_mode }}.yaml.j2"
+    dest: "{{ portainer_install_dir }}/stack.yaml"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  run_once: "{{ portainer_deployment_mode == 'stack' }}"
+  delegate_to: "{{ docker_swarm_manager if portainer_deployment_mode == 'stack' else inventory_hostname }}"
+  notify: deploy portainer

@@ -1,0 +1,7 @@
+---
+portainer_image: "portainer/portainer-ce:latest"
+portainer_agent_image: "portainer/agent:latest"
+portainer_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/portainer"
+portainer_deployment_mode: "{{ 'stack' if docker_host_swarm_enabled | default(false) else 'compose' }}"
+portainer_domain: "swarm.{{ server_domain | default('ana.lu') }}"
+portainer_network: "{{ traefik_network_name | default('traefik_public') }}"
