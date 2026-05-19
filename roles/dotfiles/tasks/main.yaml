@@ -1,8 +1,4 @@
 ---
-- name: Skip if dotfiles is disabled
-  ansible.builtin.meta: end_host
-  when: not dotfiles_enabled
-
 - name: Fail if required variables are not set
   ansible.builtin.fail:
     msg: "{{ item.name }} must be set"

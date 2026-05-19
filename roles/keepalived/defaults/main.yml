@@ -1,6 +1,5 @@
 ---
 # Keepalived installation and configuration role
-keepalived_enabled: false
 
 # Installation settings
 keepalived_install_method: "package" # package or source

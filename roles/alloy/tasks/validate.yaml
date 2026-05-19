@@ -1,12 +1,4 @@
 ---
-- name: Validate alloy_enabled variable
-  ansible.builtin.assert:
-    that:
-      - alloy_enabled is defined
-      - alloy_enabled is boolean
-    fail_msg: "❌ alloy_enabled must be defined as boolean"
-    success_msg: "✅ alloy_enabled is valid"
-
 - name: Validate Loki configuration
   ansible.builtin.assert:
     that:
@@ -17,9 +9,7 @@
       - alloy_grafana_cloud_loki_url: {{ alloy_grafana_cloud_loki_url | default('UNDEFINED') }}
       - alloy_grafana_cloud_loki_username: {{ alloy_grafana_cloud_loki_username | default('UNDEFINED') }}
     success_msg: "✅ Loki configuration is valid"
-  when:
-    - alloy_enabled
-    - alloy_loki_enabled
+  when: alloy_loki_enabled
 
 - name: Validate Prometheus configuration
   ansible.builtin.assert:
@@ -31,9 +21,7 @@
       - alloy_grafana_cloud_prometheus_url: {{ alloy_grafana_cloud_prometheus_url | default('UNDEFINED') }}
       - alloy_grafana_cloud_prometheus_username: {{ alloy_grafana_cloud_prometheus_username | default('UNDEFINED') }}
     success_msg: "✅ Prometheus configuration is valid"
-  when:
-    - alloy_enabled
-    - alloy_metrics_enabled
+  when: alloy_metrics_enabled
 
 - name: Validate Traefik log path
   ansible.builtin.assert:
@@ -43,9 +31,7 @@
       ❌ alloy_traefik_log_path is required when alloy_traefik_logs_enabled is true.
       Set it to match traefik_access_log_path on this host.
     success_msg: "✅ Traefik log path is set: {{ alloy_traefik_log_path }}"
-  when:
-    - alloy_enabled
-    - alloy_traefik_logs_enabled
+  when: alloy_traefik_logs_enabled
 
 - name: Validate Docker integration
   ansible.builtin.assert:
@@ -54,4 +40,3 @@
       - docker_host_services_group is defined
     fail_msg: "❌ docker_host role variables are missing"
     success_msg: "✅ Docker integration variables are valid"
-  when: alloy_enabled

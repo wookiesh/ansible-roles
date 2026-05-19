@@ -1,15 +1,9 @@
 ---
-# Main entry point for GlusterFS role
 - name: Import validation tasks
   ansible.builtin.import_tasks: validate.yaml
-
 
 - name: Import installation and configuration tasks
   ansible.builtin.import_tasks: install.yaml
 
-  when: glusterfs_enabled
-
 - name: Import cluster tasks
   ansible.builtin.import_tasks: glusterfs_cluster.yaml
-
-  when: glusterfs_enabled

@@ -1,6 +1,5 @@
 ---
 # Docker installation and configuration using official script
-docker_host_enabled: false
 docker_host_install_method: "script" # script (recommended), repository (legacy)
 docker_host_version: "latest"
 

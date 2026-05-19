@@ -1,5 +1,4 @@
 ---
-admin_user_enabled: false
 admin_user_name: ""
 admin_user_shell: /bin/bash
 admin_user_groups: ["sudo"]

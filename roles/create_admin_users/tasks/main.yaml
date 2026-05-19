@@ -1,8 +1,4 @@
 ---
-- name: Skip if create_admin_users is disabled
-  ansible.builtin.meta: end_host
-  when: not create_admin_users_enabled
-
 - name: Ensure sudo group exists
   ansible.builtin.group:
     name: sudo

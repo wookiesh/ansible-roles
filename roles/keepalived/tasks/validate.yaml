@@ -1,10 +1,7 @@
 ---
-# Keepalived variable validation
 - name: Validate required variables for keepalived role
   ansible.builtin.assert:
     that:
-      - keepalived_enabled is defined
-      - keepalived_enabled is boolean
       - keepalived_interface is defined
       - keepalived_interface | length > 0
       - keepalived_router_id is defined
@@ -19,7 +16,6 @@
       - keepalived_config_file | length > 0
     fail_msg: |
       ❌ Invalid keepalived configuration:
-      - keepalived_enabled: {{ keepalived_enabled | default('UNDEFINED') }} (must be boolean)
       - keepalived_interface: {{ keepalived_interface | default('UNDEFINED') }} (must be non-empty string)
       - keepalived_router_id: {{ keepalived_router_id | default('UNDEFINED') }} (must be non-empty string)
       - keepalived_priority: {{ keepalived_priority | default('UNDEFINED') }} (must be 1-255)
@@ -52,7 +48,7 @@
       virtual_router_id (1-255), priority (1-255), advert_int (>=1)
     success_msg: "✅ VRRP instance {{ item.name }} configuration validated"
   loop: "{{ keepalived_vrrp_instances }}"
-  when: keepalived_enabled and keepalived_vrrp_instances | length > 0
+  when: keepalived_vrrp_instances | length > 0
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
 
@@ -74,7 +70,7 @@
       lb_kind (NAT/DR/TUN), protocol (TCP/UDP), virtual_server
     success_msg: "✅ Virtual server configuration validated"
   loop: "{{ keepalived_virtual_servers }}"
-  when: keepalived_enabled and keepalived_virtual_servers | length > 0
+  when: keepalived_virtual_servers | length > 0
   loop_control:
     label: "{{ item.virtual_server | default('unnamed') }}"
 
@@ -94,7 +90,7 @@
       Required fields: name, script, interval (>=1)
     success_msg: "✅ Track script {{ item.name }} configuration validated"
   loop: "{{ keepalived_track_scripts }}"
-  when: keepalived_enabled and keepalived_track_scripts | length > 0
+  when: keepalived_track_scripts | length > 0
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
 
@@ -113,7 +109,7 @@
       - auth_pass: minimum 8 characters (use vault for passwords)
     success_msg: "✅ Authentication configuration validated for {{ item.name }}"
   loop: "{{ keepalived_vrrp_instances }}"
-  when: keepalived_enabled and keepalived_vrrp_instances | length > 0
+  when: keepalived_vrrp_instances | length > 0
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
 
@@ -139,7 +135,6 @@
       - keepalived_email_smtp_server (non-empty)
       - keepalived_email_smtp_port (1-65535)
     success_msg: "✅ Email configuration validated"
-  when: keepalived_enabled
 
 - name: Validate sysctl parameters
   ansible.builtin.assert:
@@ -153,7 +148,7 @@
       Each item must have: name (non-empty string), value (number)
     success_msg: "✅ Sysctl parameter {{ item.name }} validated"
   loop: "{{ keepalived_sysctl_params }}"
-  when: keepalived_enabled and keepalived_sysctl_params | length > 0
+  when: keepalived_sysctl_params | length > 0
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
 
@@ -161,7 +156,6 @@
   ansible.builtin.debug:
     msg: |
       📋 Keepalived Configuration Summary:
-      • Enabled: {{ keepalived_enabled }}
       • Interface: {{ keepalived_interface }}
       • Router ID: {{ keepalived_router_id }}
       • Priority: {{ keepalived_priority }}
@@ -170,4 +164,3 @@
       • Virtual Servers: {{ keepalived_virtual_servers | length }}
       • Track Scripts: {{ keepalived_track_scripts | length }}
       • Email Notifications: {{ keepalived_email_enabled }}
-  when: keepalived_enabled

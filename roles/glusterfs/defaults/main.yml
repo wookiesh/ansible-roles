@@ -1,7 +1,5 @@
 ---
 # GlusterFS Role Configuration
-# Enable/disable GlusterFS installation and configuration
-glusterfs_enabled: false
 
 # Installation settings
 glusterfs_version: "latest"

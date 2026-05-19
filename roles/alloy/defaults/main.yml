@@ -1,6 +1,5 @@
 ---
 # Grafana Alloy observability agent
-alloy_enabled: false
 alloy_version: "v1.7.4"
 
 # Deployment paths

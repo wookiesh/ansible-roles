@@ -1,5 +1,4 @@
 ---
-create_admin_users_enabled: false
 create_admin_users_git_url: ""
 create_admin_users_shell: /bin/bash
 create_admin_users_default_groups:

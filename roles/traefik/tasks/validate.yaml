@@ -1,14 +1,5 @@
 ---
-# Traefik variable validation
-- name: Validate required variables for traefik role
-  ansible.builtin.assert:
-    that:
-      - traefik_enabled is defined
-      - traefik_enabled is boolean
-    fail_msg: "❌ traefik_enabled must be defined as boolean"
-    success_msg: "✅ traefik_enabled variable is valid"
-
-- name: Validate required variables for Traefik
+- name: Validate Cloudflare DNS API token (ACME mode only)
   ansible.builtin.assert:
     that:
       - vault_cloudflare_dns_api_token is defined
@@ -16,18 +7,12 @@
     fail_msg: |
       ❌ Missing required variable: vault_cloudflare_dns_api_token
 
-      Traefik requires a Cloudflare DNS API token for SSL certificate generation.
+      Traefik ACME requires a Cloudflare DNS API token for SSL certificate generation.
       Please add to your vault.yml:
 
       vault_cloudflare_dns_api_token: "your_cloudflare_dns_api_token_here"
-
-      You can create a DNS API token in your Cloudflare dashboard:
-      1. Go to My Profile → API Tokens
-      2. Create Token → Custom token
-      3. Permissions: Zone:Zone:Read, Zone:DNS:Edit
-      4. Zone Resources: Include:All zones (or specific zones)
     success_msg: "✅ Cloudflare DNS API token is present"
-  when: traefik_enabled
+  when: traefik_acme_enabled | default(false)
 
 - name: Validate Traefik domain configuration
   ansible.builtin.assert:
@@ -37,7 +22,6 @@
       - traefik_domain is match('^[a-zA-Z0-9.-]+$')
     fail_msg: "❌ Invalid Traefik domain: {{ traefik_domain | default('UNDEFINED') }}"
     success_msg: "✅ Traefik domain is valid: {{ traefik_domain }}"
-  when: traefik_enabled
 
 - name: Validate Traefik static configuration
   ansible.builtin.assert:
@@ -52,7 +36,6 @@
       - traefik_static_config: {{ traefik_static_config | default('UNDEFINED') }}
       Required: traefik_static_config must contain entryPoints.web and entryPoints.websecure
     success_msg: "✅ Traefik static configuration is valid"
-  when: traefik_enabled
 
 - name: Validate Traefik entryPoints configuration
   ansible.builtin.assert:
@@ -71,7 +54,6 @@
       - Websecure entryPoint: {{ traefik_static_config.entryPoints.websecure.address | default('UNDEFINED') }}
       Required: Both entryPoints must have valid port numbers (1-65535)
     success_msg: "✅ Traefik entryPoints are valid"
-  when: traefik_enabled
 
 - name: Validate Traefik providers configuration
   ansible.builtin.assert:
@@ -83,7 +65,6 @@
       - providers: {{ traefik_static_config.providers | default('UNDEFINED') }}
       Required: traefik_static_config must contain providers section
     success_msg: "✅ Traefik providers configuration is valid"
-  when: traefik_enabled
 
 - name: Validate Traefik provider based on deployment mode
   ansible.builtin.assert:
@@ -96,7 +77,6 @@
       - Swarm mode requires: traefik_static_config.providers.docker or traefik_static_config.providers.swarm
       Current providers: {{ traefik_static_config.providers | default('UNDEFINED') }}
     success_msg: "✅ Traefik provider configuration matches deployment mode"
-  when: traefik_enabled
 
 - name: Validate Traefik dynamic configuration
   ansible.builtin.assert:
@@ -108,7 +88,6 @@
       - traefik_dynamic_config: {{ traefik_dynamic_config | default('UNDEFINED') }}
       Required: traefik_dynamic_config must be a valid mapping
     success_msg: "✅ Traefik dynamic configuration is valid"
-  when: traefik_enabled
 
 - name: Validate Docker integration
   ansible.builtin.assert:
@@ -121,4 +100,3 @@
       ❌ Docker integration variables are missing or invalid.
       Make sure docker_host role is properly configured.
     success_msg: "✅ Docker integration variables are valid"
-  when: traefik_enabled

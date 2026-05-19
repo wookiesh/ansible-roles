@@ -1,6 +1,5 @@
 ---
 # Traefik reverse proxy configuration
-traefik_enabled: false
 traefik_version: "v3.6.15"
 traefik_domain:
 

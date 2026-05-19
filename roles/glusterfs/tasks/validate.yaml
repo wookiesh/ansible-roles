@@ -1,30 +1,20 @@
 ---
-# Validate all required variables and system requirements
-- name: Check if GlusterFS is enabled
-  ansible.builtin.debug:
-    msg: "🔧 GlusterFS is disabled - skipping validation and configuration"
-  when: not glusterfs_enabled
-
 - name: Set network configuration
   ansible.builtin.set_fact:
     glusterfs_bind_address: "{{ hostvars[inventory_hostname]['ansible_' + glusterfs_bind_interface]['ipv4']['address'] }}"
-  when:
-    - glusterfs_enabled
-    - glusterfs_group_name != ""
+  when: glusterfs_group_name != ""
 
 - name: Set replica count dynamically
   ansible.builtin.set_fact:
     glusterfs_replica_count: "{{ groups[glusterfs_group_name] | length }}"
   when:
-    - glusterfs_enabled
-    - glusterfs_replica_count == 3 # Only override default value
+    - glusterfs_replica_count == 3
     - glusterfs_group_name != ""
   run_once: true
 
 - name: Validate required variables
   ansible.builtin.assert:
     that:
-      - glusterfs_enabled is defined
       - glusterfs_cluster_name is defined
       - glusterfs_cluster_name | length > 0
       - glusterfs_volume_name is defined
@@ -42,7 +32,6 @@
       - glusterfs_bind_address | length > 0
     fail_msg: |
       ❌ Invalid GlusterFS configuration:
-      - glusterfs_enabled: {{ glusterfs_enabled | default('UNDEFINED') }}
       - glusterfs_cluster_name: {{ glusterfs_cluster_name | default('UNDEFINED') }}
       - glusterfs_volume_name: {{ glusterfs_volume_name | default('UNDEFINED') }}
       - glusterfs_brick_dir: {{ glusterfs_brick_dir | default('UNDEFINED') }}
@@ -53,7 +42,6 @@
 
       Required: All variables must be defined with valid values
     success_msg: "✅ All GlusterFS variables validated successfully"
-  when: glusterfs_enabled
 
 - name: Validate cluster size
   ansible.builtin.assert:
@@ -71,7 +59,6 @@
 
       Please set glusterfs_group_name in your group_vars
     success_msg: "✅ Cluster size validated - {{ groups[glusterfs_group_name] | length }} nodes available"
-  when: glusterfs_enabled
 
 - name: Validate system requirements
   ansible.builtin.assert:
@@ -85,10 +72,7 @@
       - OS: {{ ansible_distribution }} {{ ansible_distribution_version }} (requires Debian 10+ or Ubuntu 20.04+)
       - Memory: {{ ansible_memtotal_mb }}MB (requires minimum 2048MB)
       - Disk space: Insufficient space on root partition (requires minimum 10GB)
-
-      Please ensure system meets minimum requirements for GlusterFS
     success_msg: "✅ System requirements validated"
-  when: glusterfs_enabled
 
 - name: Display cluster information
   ansible.builtin.debug:
@@ -102,4 +86,3 @@
       - Current Node: {{ inventory_hostname }} ({{ glusterfs_bind_address }})
       - Brick Directory: {{ glusterfs_brick_dir }}
       - Mount Directory: {{ glusterfs_mount_dir }}
-  when: glusterfs_enabled

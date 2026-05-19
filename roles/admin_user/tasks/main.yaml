@@ -1,8 +1,4 @@
 ---
-- name: Skip if admin_user is disabled
-  ansible.builtin.meta: end_host
-  when: not admin_user_enabled
-
 - name: Fail if required variables are not set
   ansible.builtin.fail:
     msg: "{{ item.var }} must be set — define it in inventory or group_vars"

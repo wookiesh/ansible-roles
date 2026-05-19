@@ -1,23 +1,17 @@
 ---
-# Docker installation and configuration role
 # Phase 1: Docker installation and basic configuration
 - name: Import Docker installation tasks
   ansible.builtin.include_tasks: install.yaml
-  when: docker_host_enabled
 
 - name: Import Docker configuration tasks
   ansible.builtin.include_tasks: configure.yaml
-  when: docker_host_enabled
 
 - name: Import Docker Compose installation tasks
   ansible.builtin.include_tasks: docker_compose.yaml
-  when:
-    - docker_host_compose_install
-    - docker_host_enabled
+  when: docker_host_compose_install
 
 - name: Import Docker user management tasks
   ansible.builtin.include_tasks: users.yaml
-  when: docker_host_enabled
 
 # Phase 2: Single Docker daemon restart and stabilization
 - name: Restart Docker daemon once after all configuration
@@ -25,7 +19,6 @@
     name: docker
     state: restarted
   become: true
-  when: docker_host_enabled
   register: docker_host_daemon_restart_result
 
 - name: Wait for Docker daemon to be fully ready
@@ -35,13 +28,11 @@
   until: docker_host_daemon_status.status.ActiveState == "active"
   retries: 10
   delay: 5
-  when: docker_host_enabled
 
 - name: Verify Docker is working after restart
   ansible.builtin.command: docker --version
   register: docker_host_verify_after_restart
   changed_when: false
-  when: docker_host_enabled
 
 - name: Assert Docker is working after restart
   ansible.builtin.assert:
@@ -49,7 +40,6 @@
       - docker_host_verify_after_restart.rc == 0
     fail_msg: "Docker is not working after daemon restart"
     success_msg: "Docker is working correctly after restart"
-  when: docker_host_enabled
 
 # Phase 3: Install Docker SDK for Python (required for Swarm modules)
 - name: Install pip for Python3
@@ -58,14 +48,12 @@
       - python3-pip
       - python3-setuptools
     state: present
-  when: docker_host_enabled
   register: docker_host_pip_install_result
 
 - name: Install Docker SDK for Python
   ansible.builtin.package:
     name: python3-docker
     state: present
-  when: docker_host_enabled
   register: docker_host_sdk_package_result
   failed_when: false
 
@@ -74,14 +62,13 @@
     name: "docker>=6.0.0"
     state: latest
     extra_args: --upgrade --break-system-packages
-  when: docker_host_enabled and docker_host_pip_install_result is succeeded
+  when: docker_host_pip_install_result is succeeded
   register: docker_host_sdk_upgrade_result
 
 - name: Install Docker SDK via pip as fallback
   ansible.builtin.pip:
     name: "docker>=6.0.0"
     state: latest
-  when: docker_host_enabled
   register: docker_host_sdk_pip_result
   failed_when: false
 
@@ -90,24 +77,19 @@
   ansible.builtin.set_fact:
     docker_host_config_completed: true
     cacheable: true
-  when: docker_host_enabled
 
 - name: Import Docker Swarm initialization tasks
   ansible.builtin.include_tasks: swarm_init.yaml
-  when:
-    - docker_host_swarm_enabled
+  when: docker_host_swarm_enabled
 
 - name: Import Docker Swarm join tasks
   ansible.builtin.include_tasks: swarm_join.yaml
-  when:
-    - docker_host_swarm_enabled
+  when: docker_host_swarm_enabled
 
 - name: Import Docker Swarm configuration tasks
   ansible.builtin.include_tasks: swarm_configure.yaml
-  when:
-    - docker_host_swarm_enabled
+  when: docker_host_swarm_enabled
 
 - name: Import Docker Swarm validation tasks
   ansible.builtin.include_tasks: swarm_validate.yaml
-  when:
-    - docker_host_swarm_enabled
+  when: docker_host_swarm_enabled
