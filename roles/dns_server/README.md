@@ -19,7 +19,7 @@ Binds port 53 to `ansible_host` (the host's main IP) to avoid conflict with `sys
 | `dns_server_bind_ip` | `{{ ansible_host }}` | IP to bind port 53 on |
 | `dns_server_ui_port` | `5380` | Internal HTTP port for the management UI |
 | `dns_server_domain` | `{{ inventory_hostname }}.{{ server_domain }}` | Traefik hostname (per-node dashboard) |
-| `dns_server_ui_domain` | `technitium.{{ inventory_hostname }}.ops.ana.lu` | Alt hostname for UI |
+| `dns_server_ui_domain` | `technitium.{{ inventory_hostname }}.{{ server_domain }}` | Alt hostname for UI |
 | `dns_server_timezone` | `{{ timezone \| default('Europe/Luxembourg') }}` | Container timezone |
 | `dns_server_network` | `{{ traefik_network_name }}` | External Traefik network |
 

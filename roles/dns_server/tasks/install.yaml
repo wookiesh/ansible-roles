@@ -1,15 +1,35 @@
 ---
-- name: Create Technitium directories
+- name: Create Technitium install directory
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ dns_server_install_dir }}"
     state: directory
     owner: root
     group: "{{ docker_host_services_group | default('docker') }}"
     mode: "2775"
-  loop:
-    - "{{ dns_server_install_dir }}"
-    - "{{ dns_server_data_dir }}"
   become: true
+
+- name: Ensure systemd-resolved config directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Disable systemd-resolved stub listener with fallback DNS
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/nostub.conf
+    content: |
+      [Resolve]
+      DNSStubListener=no
+      DNS={{ dns_server_fallback_dns | join(' ') }}
+      FallbackDNS={{ dns_server_fallback_dns | join(' ') }}
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart systemd-resolved
 
 - name: Create Traefik network
   community.docker.docker_network:
@@ -23,5 +43,5 @@
     owner: root
     group: "{{ docker_host_services_group | default('docker') }}"
     mode: "0640"
-  notify: restart technitium
+  notify: Restart technitium
   become: true

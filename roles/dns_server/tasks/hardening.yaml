@@ -1,0 +1,118 @@
+---
+- name: Harden Technitium security settings
+  block:
+    - name: Wait for Technitium API to be ready
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ dns_server_ui_port }}"
+        timeout: 60
+
+    - name: Authenticate to Technitium API
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/user/login"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          user: admin
+          pass: "{{ dns_server_admin_password }}"
+        return_content: true
+      register: _technitium_auth
+      no_log: true
+
+    - name: Get current settings
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/get"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+        return_content: true
+      register: _current_settings
+      no_log: true
+
+    - name: Restrict recursion to private networks
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          recursion: "{{ dns_server_recursion }}"
+        return_content: true
+      register: _recursion_result
+      failed_when: _recursion_result.json.status == 'error'
+      changed_when: _recursion_result.json.status == 'ok'
+      when: (_current_settings.json.response.recursion | default('')) != dns_server_recursion
+
+    - name: Enable DNSSEC validation
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          dnssecValidation: "{{ dns_server_dnssec_validation | string | lower }}"
+        return_content: true
+      register: _dnssec_result
+      failed_when: _dnssec_result.json.status == 'error'
+      changed_when: _dnssec_result.json.status == 'ok'
+      when: >-
+        (_current_settings.json.response.dnssecValidation | default(false) | bool)
+        != (dns_server_dnssec_validation | bool)
+
+    - name: Enable QNAME minimization and name randomization
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          qnameMinimization: "{{ dns_server_qname_minimization | string | lower }}"
+          randomizeName: "{{ dns_server_randomize_name | string | lower }}"
+        return_content: true
+      register: _qname_result
+      failed_when: _qname_result.json.status == 'error'
+      changed_when: _qname_result.json.status == 'ok'
+      when: >-
+        (_current_settings.json.response.qnameMinimization | default(true) | bool)
+          != (dns_server_qname_minimization | bool)
+        or (_current_settings.json.response.randomizeName | default(true) | bool)
+          != (dns_server_randomize_name | bool)
+
+    - name: Enable DNS blocking with block lists
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          enableBlocking: "{{ dns_server_enable_blocking | string | lower }}"
+          blockingType: "{{ dns_server_blocking_type }}"
+          blockListUrls: "{{ dns_server_block_list_urls | join(',') }}"
+        return_content: true
+      register: _blocking_result
+      failed_when: _blocking_result.json.status == 'error'
+      changed_when: _blocking_result.json.status == 'ok'
+      when:
+        - dns_server_enable_blocking | bool
+        - dns_server_block_list_urls | length > 0
+        - >-
+          not (_current_settings.json.response.enableBlocking | default(false) | bool)
+          or (_current_settings.json.response.blockListUrls | default([], true) | sort | join(','))
+             != (dns_server_block_list_urls | sort | join(','))
+          or (_current_settings.json.response.blockingType | default('AnyAddress'))
+             != dns_server_blocking_type
+
+    - name: Set per-IP query rate limits
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          qpmPrefixLimitsIPv4: "{{ dns_server_qpm_limits_ipv4 }}"
+        return_content: true
+      register: _qpm_result
+      failed_when: _qpm_result.json.status == 'error'
+      changed_when: _qpm_result.json.status == 'ok'
+      when: dns_server_qpm_limits_ipv4 | length > 0

@@ -4,3 +4,16 @@
 
 - name: Import DNS server service tasks
   ansible.builtin.import_tasks: service.yaml
+
+- name: Import DNS server configuration tasks
+  ansible.builtin.import_tasks: configure.yaml
+
+- name: Import DNS app installation tasks
+  ansible.builtin.import_tasks: apps.yaml
+
+- name: Import DNS server hardening tasks
+  ansible.builtin.import_tasks: hardening.yaml
+
+- name: Import DNS zone configuration tasks
+  ansible.builtin.import_tasks: zones.yaml
+  tags: dns_zones

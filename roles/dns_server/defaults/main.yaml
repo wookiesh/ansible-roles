@@ -1,16 +1,58 @@
 ---
-dns_server_image: "technitium/dns-server:13"
+dns_server_image: "technitium/dns-server:15.2.0"
 
 dns_server_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/technitium"
-dns_server_data_dir: "{{ dns_server_install_dir }}/data"
 dns_server_compose_file: "{{ dns_server_install_dir }}/compose.yaml"
 
-# Bind DNS port to the host's main IP to avoid conflict with systemd-resolved stub (127.0.0.53:53)
-dns_server_bind_ip: "{{ ansible_host }}"
+# Bind to all interfaces so the keepalived VIP (secondary address) is also reachable
+dns_server_bind_ip: "0.0.0.0"
 dns_server_ui_port: 5380
 
-dns_server_domain: "{{ inventory_hostname }}.{{ server_domain | default('ana.lu') }}"
-dns_server_ui_domain: "technitium.{{ inventory_hostname }}.ops.ana.lu"
+dns_server_domain: "{{ inventory_hostname }}.{{ server_domain }}"
+dns_server_ui_domain: "technitium.{{ inventory_hostname }}.{{ server_domain }}"
+dns_server_vip_domain: ""  # optional shared VIP domain; both nodes expose this router alongside the per-host domain
+
+# Fallback used by systemd-resolved if Technitium is down (stub listener is disabled)
+dns_server_fallback_dns:
+  - "9.9.9.9"          # Quad9 primary
+  - "149.112.112.112"  # Quad9 secondary
+# Forwarder protocol: Udp | Tcp | Tls | Https | Quic
+# For Tls: use "ip@853#hostname" format in dns_server_fallback_dns (e.g. "9.9.9.9@853#dns.quad9.net")
+dns_server_fallback_dns_protocol: "Udp"
 
 dns_server_timezone: "{{ timezone | default('Europe/Luxembourg') }}"
+dns_server_real_ip_header: ""  # proxy header for real client IP (e.g. X-Real-IP when behind Traefik)
 dns_server_network: "{{ traefik_network_name | default('traefik_public') }}"
+
+dns_server_dot_enabled: false
+dns_server_tls_cert_dir: ""  # path to dir with cert.pem + key.pem; enables DoT when dns_server_dot_enabled is true
+
+# ── Security / hardening ──────────────────────────────────────────────────────
+# Recursion policy: Deny | Allow | AllowOnlyForPrivateNetworks | UseSpecifiedNetworkACL
+dns_server_recursion: "AllowOnlyForPrivateNetworks"
+
+dns_server_dnssec_validation: true    # validate DNSSEC for all upstream/forwarder responses
+dns_server_qname_minimization: true   # send minimal labels to upstream resolvers (privacy)
+dns_server_randomize_name: true       # 0x20 QNAME randomization against cache poisoning
+
+dns_server_enable_blocking: false
+dns_server_blocking_type: "NxDomain"  # NxDomain | AnyAddress | CustomAddress
+dns_server_block_list_urls: []        # comma-joined list of block list URLs
+
+# QPM rate limiting — pipe-separated rows of prefix|udpLimit|tcpLimit.
+# Example: "32|500|100" limits each /32 (individual IP) to 500 UDP + 100 TCP req/min.
+# Empty string disables rate limiting.
+dns_server_qpm_limits_ipv4: ""
+dns_server_qpm_limits_ipv6: ""
+
+# Zone definitions — applied via Technitium API after service start.
+# Each zone uses primary_type (applied to groups[group_name][0]) and
+# secondary_type (applied to remaining nodes, which auto-receive the primary node's IP).
+# Supported types: Primary, Secondary, Stub, Forwarder, SecondaryForwarder
+# Forwarder zones:   forwarder: "ip"  (optional dnssec_validation: true/false)
+dns_server_group_name: "dns_servers"
+
+# Apps to install from Technitium app store (https://download.technitium.com/dns/apps/)
+dns_server_apps: []
+
+dns_server_zones: []

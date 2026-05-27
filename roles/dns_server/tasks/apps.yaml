@@ -1,0 +1,89 @@
+---
+- name: Install DNS apps
+  when: dns_server_apps | length > 0
+  block:
+    - name: Wait for Technitium API to be ready
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ dns_server_ui_port }}"
+        timeout: 60
+
+    - name: Authenticate to Technitium API
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/user/login"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          user: admin
+          pass: "{{ dns_server_admin_password }}"
+        return_content: true
+      register: _technitium_auth
+      no_log: true
+
+    - name: Get installed apps
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/apps/list"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+        return_content: true
+      register: _installed_apps
+      no_log: true
+
+    - name: Download app zip on controller
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: "/tmp/technitium_app_{{ item.name | regex_replace('[^a-zA-Z0-9]', '_') }}.zip"
+        mode: "0644"
+      delegate_to: localhost
+      run_once: true
+      when: item.name not in (_installed_apps.json.response | default([]))
+      loop: "{{ dns_server_apps }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Copy app zip to target host
+      ansible.builtin.copy:
+        src: "/tmp/technitium_app_{{ item.name | regex_replace('[^a-zA-Z0-9]', '_') }}.zip"
+        dest: "/tmp/technitium_app_{{ item.name | regex_replace('[^a-zA-Z0-9]', '_') }}.zip"
+        mode: "0644"
+      when: item.name not in (_installed_apps.json.response | default([]))
+      loop: "{{ dns_server_apps }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Upload and install app  # noqa: command-instead-of-module
+      ansible.builtin.shell:
+        # uri module cannot handle binary multipart uploads (UTF-8 serialization barrier)
+        cmd: >-
+          curl -s
+          -F "zipFile=@/tmp/technitium_app_{{ item.name | regex_replace('[^a-zA-Z0-9]', '_') }}.zip;type=application/zip"
+          "http://localhost:{{ dns_server_ui_port }}/api/apps/install?token={{ _technitium_auth.json.token }}&name={{ item.name | urlencode }}"
+      register: _install_result
+      changed_when: (_install_result.stdout | from_json).status == 'ok'
+      failed_when:
+        - _install_result.rc != 0 or (_install_result.stdout | from_json).status == 'error'
+        - "'already exists' not in (_install_result.stdout | from_json).errorMessage | default('')"
+      when: item.name not in (_installed_apps.json.response | map(attribute='name') | list | default([]))
+      loop: "{{ dns_server_apps }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Remove app zips from target host
+      ansible.builtin.file:
+        path: "/tmp/technitium_app_{{ item.name | regex_replace('[^a-zA-Z0-9]', '_') }}.zip"
+        state: absent
+      loop: "{{ dns_server_apps }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Remove app zips from controller
+      ansible.builtin.file:
+        path: "/tmp/technitium_app_{{ item.name | regex_replace('[^a-zA-Z0-9]', '_') }}.zip"
+        state: absent
+      loop: "{{ dns_server_apps }}"
+      loop_control:
+        label: "{{ item.name }}"
+      delegate_to: localhost
+      run_once: true

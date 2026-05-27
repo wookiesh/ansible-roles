@@ -1,0 +1,97 @@
+---
+- name: Configure Technitium settings
+  block:
+    - name: Wait for Technitium API to be ready
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ dns_server_ui_port }}"
+        timeout: 60
+
+    - name: Authenticate to Technitium API
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/user/login"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          user: admin
+          pass: "{{ dns_server_admin_password }}"
+        return_content: true
+      register: _technitium_auth
+      no_log: true
+
+    - name: Get current settings
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/get"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+        return_content: true
+      register: _current_settings
+      no_log: true
+
+    - name: Set proxy real IP header
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          webServiceRealIpHeader: "{{ dns_server_real_ip_header }}"
+        return_content: true
+      register: _proxy_result
+      failed_when: _proxy_result.json.status == 'error'
+      changed_when: _proxy_result.json.status == 'ok'
+      when:
+        - dns_server_real_ip_header | length > 0
+        - (_current_settings.json.response.webServiceRealIpHeader | default(''))
+          != dns_server_real_ip_header
+
+    - name: Create PFX certificate for DNS-over-TLS
+      ansible.builtin.command:
+        cmd: >-
+          openssl pkcs12 -export
+          -out {{ dns_server_tls_cert_dir }}/dot.pfx
+          -inkey {{ dns_server_tls_cert_dir }}/key.pem
+          -in {{ dns_server_tls_cert_dir }}/cert.pem
+          -passout pass:
+        creates: "{{ dns_server_tls_cert_dir }}/dot.pfx"
+      become: true
+      when: dns_server_dot_enabled | bool and dns_server_tls_cert_dir | length > 0
+
+    - name: Enable DNS-over-TLS with certificate
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          enableDnsOverTls: "true"
+          dnsTlsCertificatePath: "/certs/dot.pfx"
+          dnsTlsCertificatePassword: ""
+        return_content: true
+      register: _tls_result
+      failed_when: _tls_result.json.status == 'error'
+      changed_when: _tls_result.json.status == 'ok'
+      when:
+        - dns_server_dot_enabled | bool
+        - dns_server_tls_cert_dir | length > 0
+
+    - name: Set upstream forwarders
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          forwarders: "{{ dns_server_fallback_dns | join(',') }}"
+          forwarderProtocol: "{{ dns_server_fallback_dns_protocol }}"
+        return_content: true
+      register: _settings_result
+      failed_when: _settings_result.json.status == 'error'
+      changed_when: _settings_result.json.status == 'ok'
+      when: >-
+        (_current_settings.json.response.forwarders | default([]) | join(','))
+          != (dns_server_fallback_dns | join(','))
+        or (_current_settings.json.response.forwarderProtocol | default('Udp'))
+          != dns_server_fallback_dns_protocol

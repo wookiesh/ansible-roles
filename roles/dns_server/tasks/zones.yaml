@@ -1,0 +1,138 @@
+---
+- name: Configure DNS zones
+  when: dns_server_zones | length > 0
+  vars:
+    _is_primary: "{{ inventory_hostname == groups[dns_server_group_name][0] }}"
+    _primary_node_ip: "{{ hostvars[groups[dns_server_group_name][0]].ansible_host }}"
+  block:
+    - name: Wait for Technitium API to be ready
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ dns_server_ui_port }}"
+        timeout: 60
+
+    - name: Authenticate to Technitium API
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/user/login"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          user: admin
+          pass: "{{ dns_server_admin_password }}"
+        return_content: true
+      register: _technitium_auth
+      no_log: true
+
+    - name: Create DNS zones
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/create"
+        method: GET
+        body_format: form-urlencoded
+        body: "{{ _zone_params }}"
+        return_content: true
+      vars:
+        _type: "{{ item.primary_type if _is_primary | bool else item.secondary_type }}"
+        _needs_primary_ns: "{{ _type in ['Secondary', 'SecondaryForwarder', 'Stub'] and not (_is_primary | bool) }}"
+        _zone_base:
+          token: "{{ _technitium_auth.json.token }}"
+          zone: "{{ item.name }}"
+          type: "{{ _type }}"
+        _zone_extra: >-
+          {{
+            ({'primaryNameServerAddresses': item.primary_nameservers | default([_primary_node_ip]) | join(',')}
+              if _needs_primary_ns | bool else {})
+            | combine({'forwarder': item.forwarder}
+              if item.forwarder is defined else {})
+            | combine({'dnssecValidation': item.dnssec_validation | string | lower}
+              if item.dnssec_validation is defined else {})
+          }}
+        _zone_params: "{{ _zone_base | combine(_zone_extra) }}"
+      register: _zone_result
+      failed_when:
+        - _zone_result.json.status == 'error'
+        - "'Zone already exists' not in (_zone_result.json.errorMessage | default(''))"
+      changed_when: _zone_result.json.status == 'ok'
+      loop: "{{ dns_server_zones }}"
+      loop_control:
+        label: "{{ item.name }} ({{ item.primary_type if _is_primary | bool else item.secondary_type }})"
+      no_log: false
+
+    - name: Configure zone transfer and notify on primary zones
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/options/set"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          zone: "{{ item.name }}"
+          zoneTransfer: "UseSpecifiedNetworkACL"
+          zoneTransferNetworkACL: "{{ _secondary_node_ip }}"
+          notify: "SpecifiedNameServers"
+          notifyNameServers: "{{ _secondary_node_ip }}"
+        return_content: true
+      vars:
+        _secondary_node_ip: "{{ hostvars[groups[dns_server_group_name][1]].ansible_host }}"
+      register: _zone_options_result
+      failed_when: _zone_options_result.json.status == 'error'
+      changed_when: false
+      when:
+        - _is_primary | bool
+        - groups[dns_server_group_name] | length > 1
+      loop: "{{ dns_server_zones }}"
+      loop_control:
+        label: "{{ item.name }}"
+      no_log: true
+
+    - name: Create DNS records
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/records/add"
+        method: GET
+        body_format: form-urlencoded
+        body: "{{ _record_params }}"
+        return_content: true
+      vars:
+        _zone: "{{ item[0] }}"
+        _record: "{{ item[1] }}"
+        _type_extra:
+          A: { ipAddress: "{{ _record.value }}" }
+          CNAME: { cname: "{{ _record.value }}" }
+          PTR: { ptrName: "{{ _record.value }}" }
+          TXT: { text: "{{ _record.value }}" }
+        _record_params: >-
+          {{
+            {
+              'token': _technitium_auth.json.token,
+              'zone': _zone.name,
+              'domain': (_record.name ~ '.' ~ _zone.name) if _record.name != '@' else _zone.name,
+              'type': _record.type,
+              'ttl': _record.ttl | default(3600)
+            } | combine(_type_extra[_record.type])
+          }}
+      register: _record_result
+      failed_when:
+        - _record_result.json.status == 'error'
+        - "'already exists' not in (_record_result.json.errorMessage | default('') | lower)"
+      changed_when: _record_result.json.status == 'ok'
+      when: _is_primary | bool
+      loop: "{{ dns_server_zones | subelements('records', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item[1].name }}.{{ item[0].name }} {{ item[1].type }} {{ item[1].value }}"
+      no_log: false
+
+    - name: Resync secondary zones from primary
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/resync"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          zone: "{{ item.name }}"
+        return_content: true
+      register: _resync_result
+      failed_when: _resync_result.json.status == 'error'
+      changed_when: false
+      when: not (_is_primary | bool)
+      loop: "{{ dns_server_zones }}"
+      loop_control:
+        label: "{{ item.name }}"
+      no_log: true

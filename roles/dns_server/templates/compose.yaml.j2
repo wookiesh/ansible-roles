@@ -2,6 +2,9 @@ networks:
   {{ dns_server_network }}:
     external: true
 
+volumes:
+  technitium_data:
+
 services:
   technitium:
     image: {{ dns_server_image }}
@@ -11,15 +14,32 @@ services:
     ports:
       - "{{ dns_server_bind_ip }}:53:53/udp"
       - "{{ dns_server_bind_ip }}:53:53/tcp"
+{% if dns_server_dot_enabled %}
+      - "{{ dns_server_bind_ip }}:853:853/tcp"
+{% endif %}
+      - "127.0.0.1:{{ dns_server_ui_port }}:{{ dns_server_ui_port }}"
     volumes:
-      - {{ dns_server_data_dir }}:/etc/dns
+      - technitium_data:/etc/dns
+{% if dns_server_dot_enabled and dns_server_tls_cert_dir %}
+      - "{{ dns_server_tls_cert_dir }}:/certs:ro"
+{% endif %}
     environment:
       DNS_SERVER_DOMAIN: "{{ dns_server_domain }}"
+      DNS_SERVER_ADMIN_PASSWORD: "{{ dns_server_admin_password }}"
       TZ: "{{ dns_server_timezone }}"
     networks:
       - {{ dns_server_network }}
     labels:
       - traefik.enable=true
       - traefik.http.routers.technitium.rule=Host(`{{ dns_server_ui_domain }}`)
+      - traefik.http.routers.technitium.entrypoints=websecure
       - traefik.http.routers.technitium.tls=true
+      - traefik.http.routers.technitium.middlewares=internal-only@file
       - traefik.http.services.technitium.loadbalancer.server.port={{ dns_server_ui_port }}
+{% if dns_server_vip_domain %}
+      - traefik.http.routers.technitium-vip.rule=Host(`{{ dns_server_vip_domain }}`)
+      - traefik.http.routers.technitium-vip.entrypoints=websecure
+      - traefik.http.routers.technitium-vip.tls=true
+      - traefik.http.routers.technitium-vip.middlewares=internal-only@file
+      - traefik.http.routers.technitium-vip.service=technitium
+{% endif %}
