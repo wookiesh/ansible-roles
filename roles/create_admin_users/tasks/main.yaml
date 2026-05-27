@@ -28,7 +28,7 @@
     path: "/home/{{ item.name }}/.ssh"
     state: directory
     owner: "{{ item.name }}"
-    group: "{{ item.name }}"
+    group: "{{ item.name if item.name in ansible_facts.getent_group else omit }}"
     mode: "0700"
   loop: "{{ create_admin_users_list }}"
   loop_control:
