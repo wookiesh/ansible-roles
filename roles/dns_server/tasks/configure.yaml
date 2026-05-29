@@ -95,3 +95,27 @@
           != (dns_server_fallback_dns | join(','))
         or (_current_settings.json.response.forwarderProtocol | default('Udp'))
           != dns_server_fallback_dns_protocol
+
+    - name: Allow global zone transfer and notify from peer DNS node
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          zoneTransferAllowedNetworks: "{{ _peer_ip }}"
+          notifyAllowedNetworks: "{{ _peer_ip }}"
+        return_content: true
+      vars:
+        _peer_index: "{{ 1 if inventory_hostname == groups[dns_server_group_name][0] else 0 }}"
+        _peer_ip: "{{ hostvars[groups[dns_server_group_name][_peer_index | int]].ansible_host }}"
+      register: _zt_result
+      failed_when: _zt_result.json.status == 'error'
+      changed_when: _zt_result.json.status == 'ok'
+      when:
+        - groups[dns_server_group_name] | length > 1
+        - >-
+          (_current_settings.json.response.zoneTransferAllowedNetworks | default([]) | join(','))
+            != _peer_ip
+          or (_current_settings.json.response.notifyAllowedNetworks | default([]) | join(','))
+            != _peer_ip

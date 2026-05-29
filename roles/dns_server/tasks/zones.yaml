@@ -94,7 +94,7 @@
         _zone: "{{ item[0] }}"
         _record: "{{ item[1] }}"
         _type_extra:
-          A: { ipAddress: "{{ _record.value }}" }
+          A: { ipAddress: "{{ _record.value }}", ptr: "true", createPtrZone: "true" }
           CNAME: { cname: "{{ _record.value }}" }
           PTR: { ptrName: "{{ _record.value }}" }
           TXT: { text: "{{ _record.value }}" }
@@ -119,7 +119,110 @@
         label: "{{ item[1].name }}.{{ item[0].name }} {{ item[1].type }} {{ item[1].value }}"
       no_log: false
 
-    - name: Resync secondary zones from primary
+    - name: Build A records from inventory groups
+      ansible.builtin.set_fact:
+        _auto_a_records: >-
+          {%- set records = [] -%}
+          {%- for zone in dns_server_zones -%}
+            {%- if zone.auto_a_records_from_groups is defined -%}
+              {%- for group_name in zone.auto_a_records_from_groups -%}
+                {%- for hostname in groups[group_name] | default([]) -%}
+                  {%- set ip = hostvars[hostname].ansible_host | default('') | string -%}
+                  {%- if ip and ip != 'localhost' and '.' in ip -%}
+                    {%- set _ = records.append({'zone': zone.name, 'name': hostname, 'ip': ip}) -%}
+                  {%- endif -%}
+                {%- endfor -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ records }}
+
+    - name: Create A records from inventory groups
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/records/add"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          zone: "{{ item.zone }}"
+          domain: "{{ item.name }}.{{ item.zone }}"
+          type: A
+          ipAddress: "{{ item.ip }}"
+          ttl: 3600
+          ptr: "true"
+          createPtrZone: "true"
+        return_content: true
+      register: _auto_record_result
+      failed_when:
+        - _auto_record_result.json.status == 'error'
+        - "'already exists' not in (_auto_record_result.json.errorMessage | default('') | lower)"
+      changed_when: _auto_record_result.json.status == 'ok'
+      when: _is_primary | bool
+      loop: "{{ _auto_a_records | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}.{{ item.zone }} A {{ item.ip }}"
+      no_log: false
+
+    - name: Authenticate to primary Technitium API
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/user/login"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          user: admin
+          pass: "{{ dns_server_admin_password }}"
+        return_content: true
+      register: _primary_auth
+      no_log: true
+      delegate_to: "{{ groups[dns_server_group_name][0] }}"
+      when: not (_is_primary | bool)
+
+    - name: List all Primary zones on primary node
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/list"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _primary_auth.json.token }}"
+        return_content: true
+      register: _primary_zones_list
+      no_log: true
+      delegate_to: "{{ groups[dns_server_group_name][0] }}"
+      when: not (_is_primary | bool)
+
+    - name: Build list of non-internal Primary zones to sync
+      ansible.builtin.set_fact:
+        _zones_to_sync: >-
+          {{
+            _primary_zones_list.json.response.zones
+            | selectattr('type', 'equalto', 'Primary')
+            | rejectattr('internal', 'equalto', true)
+            | list
+          }}
+      when: not (_is_primary | bool)
+
+    - name: Create missing Secondary zones discovered on primary
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dns_server_ui_port }}/api/zones/create"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ _technitium_auth.json.token }}"
+          zone: "{{ item.name }}"
+          type: Secondary
+          primaryNameServerAddresses: "{{ _primary_node_ip }}"
+        return_content: true
+      register: _discovered_zone_result
+      failed_when:
+        - _discovered_zone_result.json.status == 'error'
+        - "'Zone already exists' not in (_discovered_zone_result.json.errorMessage | default(''))"
+      changed_when: _discovered_zone_result.json.status == 'ok'
+      when: not (_is_primary | bool)
+      loop: "{{ _zones_to_sync | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Resync all Secondary zones from primary
       ansible.builtin.uri:
         url: "http://localhost:{{ dns_server_ui_port }}/api/zones/resync"
         method: GET
@@ -132,7 +235,7 @@
       failed_when: _resync_result.json.status == 'error'
       changed_when: false
       when: not (_is_primary | bool)
-      loop: "{{ dns_server_zones }}"
+      loop: "{{ _zones_to_sync | default([]) }}"
       loop_control:
         label: "{{ item.name }}"
       no_log: true

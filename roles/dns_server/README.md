@@ -57,18 +57,25 @@ dns_server_zones:
   - name: "ops.ana.lu"
     primary_type: Primary          # zone type applied to groups[dns_server_group_name][0]
     secondary_type: Secondary      # zone type applied to remaining nodes
+    # Optional: auto-generate A records from inventory groups (no duplication with hosts.yaml)
+    auto_a_records_from_groups:
+      - swarm_infra
+      - dns_servers
     # For Forwarder zones:
     forwarder: "9.9.9.9"
     dnssec_validation: true        # optional
     records:
       - { name: swarm, type: A, value: "10.219.206.36" }
       - { name: traefik, type: CNAME, value: "swarm.ops.ana.lu." }
-      - { name: "10", type: PTR, value: "host.ops.ana.lu." }
 ```
 
 Supported zone types: `Primary`, `Secondary`, `Stub`, `Forwarder`, `SecondaryForwarder`.
 
-The primary node configures zone transfer (AXFR) authorization and notify for the secondary. The secondary auto-resyncs all zones after provisioning.
+**`auto_a_records_from_groups`**: for each group listed, an A record `hostname.zone` → `ansible_host` is created for every inventory host in that group. Keeps DNS in sync with `hosts.yaml` without duplicating IPs. Hosts without `ansible_host` or with `localhost` are skipped.
+
+**PTR auto-creation**: every A record (static or from `auto_a_records_from_groups`) automatically creates its reverse PTR record and the corresponding reverse zone if it doesn't exist (`ptr: true`, `createPtrZone: true`). No need to define reverse zones manually.
+
+**Secondary zone sync**: the secondary node authenticates to the primary's API, lists all non-internal Primary zones, creates any missing Secondary zones, then resyncs all of them. This covers zones auto-created by PTR expansion and any manually added zones.
 
 ### Security / hardening
 
