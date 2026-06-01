@@ -4,10 +4,10 @@
   args:
     chdir: "{{ uptimekuma_install_dir }}"
   register: uptimekuma_stack_result
-  changed_when: uptimekuma_stack_result.stdout | regex_search('(Updating|Creating)')
-  run_once: true
-  delegate_to: "{{ docker_swarm_manager }}"
-  when: uptimekuma_deployment_mode == "stack"
+  changed_when: ((uptimekuma_stack_result.stdout | default('')) | regex_search('(Updating|Creating)')) is not none
+  when:
+    - uptimekuma_deployment_mode == "stack"
+    - inventory_hostname == docker_swarm_manager
 
 - name: Deploy Uptime Kuma (compose)
   community.docker.docker_compose_v2:

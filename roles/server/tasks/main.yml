@@ -16,6 +16,7 @@
     - name: Set system hostname
       ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
+      become: true
 
     - name: Update /etc/hostname file
       ansible.builtin.copy:
@@ -24,7 +25,8 @@
         owner: root
         group: root
         mode: "0644"
-      notify: restart network services
+      become: true
+      notify: Restart network services
 
     - name: Update /etc/hosts with new hostname
       ansible.builtin.lineinfile:
@@ -34,6 +36,7 @@
         state: present
         create: true
         mode: "0644"
+      become: true
       when: server_hostname_update_hosts
 
     - name: Verify hostname configuration
@@ -55,6 +58,7 @@
       ansible.builtin.package:
         name: unattended-upgrades
         state: present
+      become: true
 
     - name: Configure automatic updates
       ansible.builtin.template:
@@ -63,6 +67,7 @@
         owner: root
         group: root
         mode: "0644"
+      become: true
       notify: Restart unattended-upgrades
 
     - name: Enable and start automatic updates service
@@ -70,6 +75,7 @@
         name: unattended-upgrades
         enabled: true
         state: started
+      become: true
 
 # -----------------------------------------------------------------------------
 # APTICRON NOTIFICATIONS
@@ -81,6 +87,7 @@
       ansible.builtin.package:
         name: apticron
         state: present
+      become: true
 
     - name: Ensure /etc/apticron directory exists
       ansible.builtin.file:
@@ -89,6 +96,7 @@
         owner: root
         group: root
         mode: "0755"
+      become: true
 
     - name: Configure apticron
       ansible.builtin.copy:
@@ -102,6 +110,45 @@
         group: root
         mode: "0644"
         force: false
+      become: true
+
+# -----------------------------------------------------------------------------
+# APT CLEANUP
+# -----------------------------------------------------------------------------
+- name: Configure APT periodic cleanup
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99-autoclean
+    content: |
+      APT::Periodic::AutocleanInterval "1";
+      APT::Periodic::CleanInterval "7";
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+# -----------------------------------------------------------------------------
+# JOURNALD SIZE LIMIT
+# -----------------------------------------------------------------------------
+- name: Ensure journald drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Configure journald size limit
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/maxsize.conf
+    content: |
+      [Journal]
+      SystemMaxUse={{ server_journald_max_use }}
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart systemd-journald
 
 # -----------------------------------------------------------------------------
 # SYSTEM PERFORMANCE TUNING
@@ -116,6 +163,7 @@
         state: present
         sysctl_file: /etc/sysctl.d/99-server-performance.conf
         reload: true
+      become: true
 
 # -----------------------------------------------------------------------------
 # VERIFICATION AND REPORTING

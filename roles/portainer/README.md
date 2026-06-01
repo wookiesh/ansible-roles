@@ -42,7 +42,7 @@ portainer_deployment_mode: "compose"
 
 ```yaml
 # group_vars/swarm_infra/vars.yaml
-portainer_domain: "swarm.ops.ana.lu"
+portainer_domain: "swarm.ops.example.com"
 ```
 
 ## Swarm behaviour

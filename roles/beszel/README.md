@@ -37,7 +37,7 @@ beszel_deployment_mode: "{{ 'stack' if docker_host_swarm_enabled | default(false
 
 ```yaml
 # group_vars/swarm_infra/vars.yaml
-beszel_domain: "monitor.ops.ana.lu"
+beszel_domain: "monitor.ops.example.com"
 ```
 
 ## Swarm behaviour

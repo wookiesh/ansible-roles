@@ -163,6 +163,29 @@ all:
 
 ## Testing
 
+### Live email delivery — `test_mail` module
+
+The role ships a custom `test_mail` module (`library/test_mail.py`) that sends a real email through the host's local MTA and fails if delivery is rejected.
+
+Use the bundled playbook (run from the infra repo):
+
+```bash
+ansible-playbook ../ansible-roles/roles/smtp/tests/test_mail.yml \
+  -l <host> \
+  -e "test_mail_to=you@example.com"
+```
+
+Optional extra vars:
+- `test_mail_from` — sender address (defaults to system default)
+- `test_mail_subject` — subject line
+
+**Prerequisite** — the infra repo's `ansible.cfg` must declare the library path:
+
+```ini
+[defaults]
+library = ../ansible-roles/roles/smtp/library
+```
+
 ### Syntax Check
 ```bash
 ansible-playbook -i inventory.yaml infrastructure.yaml --tags smtp --syntax-check

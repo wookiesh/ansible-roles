@@ -4,6 +4,7 @@
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Install required system packages
@@ -16,6 +17,7 @@
       - xfsprogs
       - attr
     state: present
+  become: true
 
 - name: Check if GlusterFS repository is already configured
   ansible.builtin.stat:
@@ -26,6 +28,7 @@
   ansible.builtin.apt_key:
     url: "https://download.gluster.org/pub/gluster/glusterfs/{{ glusterfs_version | default('10') }}/rsa.pub"
     state: present
+  become: true
   when: not glusterfs_repo_check.stat.exists and glusterfs_install_method == "repository"
 
 - name: Add GlusterFS repository
@@ -36,6 +39,7 @@
     state: present
     filename: glusterfs
     update_cache: true
+  become: true
   when: not glusterfs_repo_check.stat.exists and glusterfs_install_method == "repository"
 
 - name: Install GlusterFS server packages
@@ -45,6 +49,7 @@
       - glusterfs-client
       - glusterfs-common
     state: "{{ 'latest' if glusterfs_version == 'latest' else 'present' }}"
+  become: true
 
 - name: Check if GlusterFS service is running
   ansible.builtin.systemd:
@@ -57,6 +62,7 @@
     name: glusterd
     state: started
     enabled: "{{ glusterfs_auto_start }}"
+  become: true
   when: glusterfs_auto_start
 
 - name: Verify GlusterFS installation
@@ -65,10 +71,6 @@
   changed_when: false
   failed_when: glusterfs_version_check.rc != 0
 
-- name: Display GlusterFS version
-  ansible.builtin.debug:
-    msg: "✅ GlusterFS installed: {{ glusterfs_version_check.stdout_lines[0] }}"
-
 - name: Create GlusterFS directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -76,6 +78,7 @@
     mode: "{{ glusterfs_dir_permissions }}"
     owner: root
     group: root
+  become: true
   loop:
     - "{{ glusterfs_config_dir }}"
     - "{{ glusterfs_log_dir }}"
@@ -89,6 +92,7 @@
     mode: "0644"
     owner: root
     group: root
+  become: true
   when: glusterfs_backup_config
 
 - name: Configure GlusterFS performance tuning
@@ -97,7 +101,9 @@
     regexp: "^    option {{ item.key }} "
     line: "    option {{ item.key }} {{ item.value }}"
     create: true
+    mode: "0644"
     backup: "{{ glusterfs_backup_config }}"
+  become: true
   loop: "{{ glusterfs_performance_options | default({}) | dict2items }}"
   when: glusterfs_performance_enabled and glusterfs_performance_options is defined
   notify: Restart glusterd

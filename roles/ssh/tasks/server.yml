@@ -3,12 +3,14 @@
   ansible.builtin.package:
     name: openssh-server
     state: present
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Install SSH server package (RedHat)
   ansible.builtin.package:
     name: openssh-server
     state: present
+  become: true
   when: ansible_os_family == "RedHat"
 
 - name: Create SSH banner
@@ -18,6 +20,7 @@
     mode: "0644"
     owner: root
     group: root
+  become: true
   notify: Restart SSH
   when: ssh_enable_banner
 
@@ -28,6 +31,7 @@
     mode: "0644"
     owner: root
     group: root
+  become: true
   notify: Restart SSH
 
 - name: Validate SSH configuration
@@ -36,12 +40,14 @@
   register: ssh_validation
   changed_when: false
   failed_when: ssh_validation.rc != 0
+  become: true
 
 - name: Ensure SSH service is enabled and running
   ansible.builtin.service:
     name: ssh
     state: started
     enabled: true
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Ensure SSH service is enabled and running (RedHat)
@@ -49,6 +55,7 @@
     name: sshd
     state: started
     enabled: true
+  become: true
   when: ansible_os_family == "RedHat"
 
 - name: Create ssh-users group for SSH access control
@@ -56,6 +63,7 @@
     name: ssh-users
     state: present
     system: true
+  become: true
   when: not ssh_pikvm_mode
 
 - name: Setup fail2ban for SSH protection

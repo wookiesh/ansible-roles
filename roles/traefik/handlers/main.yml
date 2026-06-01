@@ -8,5 +8,6 @@
   ansible.builtin.command:
     cmd: "docker compose -f {{ traefik_compose_file }} exec proxy traefik reload"
   become: true
+  changed_when: false
   failed_when: false
   when: traefik_deployment_mode == "compose"

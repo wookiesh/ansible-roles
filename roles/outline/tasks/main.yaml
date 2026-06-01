@@ -1,0 +1,6 @@
+---
+- name: Import Outline installation tasks
+  ansible.builtin.import_tasks: install.yaml
+
+- name: Import Outline service tasks
+  ansible.builtin.import_tasks: service.yaml

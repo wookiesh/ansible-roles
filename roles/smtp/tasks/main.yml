@@ -63,10 +63,12 @@
     name: postfix
     state: started
     enabled: true
+  become: true
   when: smtp_enabled
 
 - name: Validate final Postfix configuration
   ansible.builtin.command: postfix check
+  become: true
   changed_when: false
   register: smtp_postfix_final_check
   failed_when: smtp_postfix_final_check.rc != 0

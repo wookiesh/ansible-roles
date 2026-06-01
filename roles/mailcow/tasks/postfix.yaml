@@ -1,0 +1,32 @@
+---
+- name: Configure Postfix regex aliases
+  when: mailcow_regex_aliases | default([]) | length > 0
+  become: true
+  block:
+    - name: Deploy Postfix regex alias file
+      ansible.builtin.template:
+        src: aliases-regexp.j2
+        dest: "{{ mailcow_install_dir }}/data/conf/postfix/aliases-regexp"
+        mode: "0644"
+      notify: Restart postfix-mailcow
+
+    - name: Get current Postfix virtual_alias_maps
+      ansible.builtin.command:
+        cmd: "docker exec mailcowdockerized-postfix-mailcow-1 postconf -h virtual_alias_maps"
+      register: _current_vam
+      changed_when: false
+
+    - name: "Build sql-only alias maps (strip any existing regexp: entries)"
+      ansible.builtin.set_fact:
+        _sql_alias_maps: >-
+          {{ _current_vam.stdout.split(',')
+             | map('trim')
+             | reject('match', '^regexp:')
+             | join(', ') }}
+
+    - name: Deploy Postfix extra.cf with regexp map prepended
+      ansible.builtin.copy:
+        content: "virtual_alias_maps = regexp:/opt/postfix/conf/aliases-regexp, {{ _sql_alias_maps }}\n"
+        dest: "{{ mailcow_install_dir }}/data/conf/postfix/extra.cf"
+        mode: "0644"
+      notify: Restart postfix-mailcow

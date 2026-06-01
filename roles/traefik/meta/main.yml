@@ -16,7 +16,7 @@ galaxy_info:
         - bookworm
   galaxy_tags:
     - networking
-    - reverse-proxy
+    - reverseproxy
     - docker
     - traefik
     - ssl

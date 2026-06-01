@@ -48,27 +48,31 @@
       - python3-pip
       - python3-setuptools
     state: present
+  become: true
   register: docker_host_pip_install_result
 
 - name: Install Docker SDK for Python
   ansible.builtin.package:
     name: python3-docker
     state: present
+  become: true
   register: docker_host_sdk_package_result
   failed_when: false
 
 - name: Upgrade Docker SDK for Python via pip (force upgrade)
   ansible.builtin.pip:
     name: "docker>=6.0.0"
-    state: latest
+    state: present
     extra_args: --upgrade --break-system-packages
+  become: true
   when: docker_host_pip_install_result is succeeded
   register: docker_host_sdk_upgrade_result
 
 - name: Install Docker SDK via pip as fallback
   ansible.builtin.pip:
     name: "docker>=6.0.0"
-    state: latest
+    state: present
+  become: true
   register: docker_host_sdk_pip_result
   failed_when: false
 

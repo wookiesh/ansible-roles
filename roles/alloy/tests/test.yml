@@ -1,7 +1,14 @@
 ---
-- hosts: localhost
-  remote_user: root
-  roles:
-    - role: alloy
-      vars:
-        alloy_enabled: false
+- name: Test Alloy role
+  hosts: localhost
+  gather_facts: true
+  vars:
+    alloy_loki_enabled: false
+    alloy_metrics_enabled: false
+    alloy_traefik_logs_enabled: false
+    alloy_cluster: "test"
+    alloy_environment: "test"
+  tasks:
+    - name: Include Alloy role
+      ansible.builtin.include_role:
+        name: alloy

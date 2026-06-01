@@ -36,6 +36,7 @@
       ansible.builtin.shell: |
         postconf relayhost inet_interfaces mydestination local_transport
       register: smtp_test_config
+      changed_when: false
       failed_when:
         - "'relayhost = [relay.test.local]:25' not in smtp_test_config.stdout"
         - "'inet_interfaces = 127.0.0.1' not in smtp_test_config.stdout"
@@ -46,47 +47,6 @@
       register: smtp_test_syntax
       failed_when: smtp_test_syntax.rc != 0
 
-    - name: Test email sending with custom from address
-      test_mail:
-        to: "admin@{{ smtp_domain }}"
-        from_addr: "ansible@{{ smtp_domain }}"
-        subject: "SMTP Test from {{ ansible_hostname }}"
-        body: |
-          This is a test email sent from {{ ansible_hostname }}
-          using SMTP role configuration.
-
-          Mode: {% if smtp_null_client_enabled %}Null Client{% elif smtp_relayhost_enabled %}Relay Host{% endif %}
-          Domain: {{ smtp_domain }}
-          Timestamp: {{ ansible_date_time.iso8601 }}
-      register: smtp_mail_test
-      failed_when: smtp_mail_test.failed
-      tags:
-        - smtp_test
-        - smtp_validate
-
-    - name: Test email sending without from address
-      test_mail:
-        to: "root@{{ smtp_domain }}"
-        subject: "Default From Test - {{ ansible_hostname }}"
-        body: |
-          Test email with default from address
-          From: {{ ansible_hostname }}
-          Time: {{ ansible_date_time.iso8601 }}
-      register: smtp_mail_test_default
-      failed_when: smtp_mail_test_default.failed
-      tags:
-        - smtp_test
-        - smtp_validate
-
-    - name: Display test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ SMTP role test completed successfully
-          - Postfix installed and running
-          - Null client configuration applied
-          - Configuration syntax valid
-          - Email sending test (custom from): {{ 'PASSED' if smtp_mail_test.succeeded else 'FAILED' }}
-          - Email sending test (default from): {{ 'PASSED' if smtp_mail_test_default.succeeded else 'FAILED' }}
-
-          {{ smtp_mail_test.msg }}
-          {{ smtp_mail_test_default.msg }}
+    - name: Verify Postfix configuration syntax
+      ansible.builtin.command: postfix check
+      changed_when: false

@@ -1,0 +1,33 @@
+---
+# Test real email delivery through the local MTA.
+# Run against a host that has the smtp role applied.
+#
+# Usage:
+#   ansible-playbook roles/smtp/tests/test_mail.yml -i <inventory> -l <host> \
+#     -e "test_mail_to=you@example.com"
+- name: Send test email via local MTA
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: false
+
+  vars:
+    test_mail_to: ""
+    test_mail_from: ""
+    test_mail_subject: "Ansible SMTP test — {{ inventory_hostname }}"
+
+  pre_tasks:
+    - name: Ensure test_mail_to is set
+      ansible.builtin.fail:
+        msg: "Set test_mail_to=<address> via -e"
+      when: test_mail_to | length == 0
+
+  tasks:
+    - name: Send test email
+      test_mail:
+        to: "{{ test_mail_to }}"
+        from_addr: "{{ test_mail_from }}"
+        subject: "{{ test_mail_subject }}"
+      register: _mail_result
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ _mail_result.msg }}"

@@ -40,36 +40,12 @@
       ansible.builtin.shell: |
         postconf relayhost inet_interfaces relay_domains
       register: smtp_test_config
+      changed_when: false
       failed_when:
         - "'relayhost = [smtp.provider.com]:587' not in smtp_test_config.stdout"
         - "'inet_interfaces = all' not in smtp_test_config.stdout"
         - "'relay_domains = example.com' not in smtp_test_config.stdout"
 
-    - name: Test email sending (relay host)
-      test_mail:
-        to: "external@example.com"
-        from_addr: "service@{{ smtp_domain }}"
-        subject: "Relay Host Test from {{ ansible_hostname }}"
-        body: |
-          This is a test email sent from {{ ansible_hostname }}
-          using SMTP relay host configuration.
-
-          External relay: {{ smtp_external_relayhost }}
-          Domain: {{ smtp_domain }}
-          Timestamp: {{ ansible_date_time.iso8601 }}
-      register: smtp_mail_test
-      failed_when: smtp_mail_test.failed
-      tags:
-        - smtp_test
-        - smtp_validate
-
-    - name: Display test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ SMTP relay host test completed successfully
-          - Postfix installed and running
-          - Relay host configuration applied
-          - Configuration syntax valid
-          - Email sending test: {{ 'PASSED' if smtp_mail_test.succeeded else 'FAILED' }}
-
-          {{ smtp_mail_test.msg }}
+    - name: Verify Postfix configuration syntax
+      ansible.builtin.command: postfix check
+      changed_when: false

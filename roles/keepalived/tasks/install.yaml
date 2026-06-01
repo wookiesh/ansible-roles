@@ -14,7 +14,7 @@
   become: true
 
 - name: Update package cache (RedHat/CentOS)
-  ansible.builtin.yum:
+  ansible.builtin.dnf:
     update_cache: true
   when: ansible_os_family == "RedHat"
   become: true
@@ -32,7 +32,7 @@
   register: keepalived_package_install
 
 - name: Install keepalived package (RedHat/CentOS)
-  ansible.builtin.yum:
+  ansible.builtin.dnf:
     name: "keepalived{{ '-' + keepalived_version if keepalived_version != 'latest' else '' }}"
     state: present
   when:
@@ -99,6 +99,7 @@
   ansible.builtin.command:
     cmd: "./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --runstatedir=/run"
     chdir: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  changed_when: true
   when:
     - keepalived_install_method == "source"
     - not keepalived_install_check.stat.exists
@@ -107,6 +108,7 @@
   ansible.builtin.command:
     cmd: "make -j{{ ansible_processor_cores }}"
     chdir: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  changed_when: true
   when:
     - keepalived_install_method == "source"
     - not keepalived_install_check.stat.exists
@@ -115,6 +117,7 @@
   ansible.builtin.command:
     cmd: "make install"
     chdir: "{{ keepalived_build_dir.path }}/keepalived-{{ keepalived_version if keepalived_version != 'latest' else '2.3.1' }}"
+  changed_when: true
   when:
     - keepalived_install_method == "source"
     - not keepalived_install_check.stat.exists

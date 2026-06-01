@@ -7,45 +7,31 @@
     that:
       - stack_item.name is defined
       - stack_item.name | length > 0
-    fail_msg: |
-      ❌ Invalid stack removal configuration for {{ stack_item.name | default('UNDEFINED') }}:
-      - name: {{ stack_item.name | default('UNDEFINED') }}
-    success_msg: "✅ Stack removal configuration validated"
+    fail_msg: "Invalid stack removal configuration: name is undefined or empty"
+    success_msg: "Stack removal configuration validated"
 
 - name: Check if stack should be removed on this host
   ansible.builtin.set_fact:
-    stack_should_remove: "{{ inventory_hostname == docker_swarm_manager | default('localhost') }}"
+    docker_stacks_should_remove: "{{ inventory_hostname == docker_swarm_manager | default('localhost') }}" # noqa: var-naming[no-role-prefix]
 
 - name: Skip stack removal - not deploy host
   ansible.builtin.debug:
-    msg: "⏭️ Skipping stack removal {{ stack_item.name }} - not deploy host ({{ inventory_hostname }} != {{ docker_swarm_manager | default('localhost') }})"
-  when: not stack_should_remove
+    msg: >-
+      Skipping stack removal {{ stack_item.name }} - not deploy host
+      ({{ inventory_hostname }} != {{ docker_swarm_manager | default('localhost') }})
+  when: not docker_stacks_should_remove
 
 - name: Remove Docker Swarm stack
   ansible.builtin.command: docker stack rm {{ stack_item.name }}
-  register: stack_remove_result
-  when:
-    - stack_should_remove
-  ignore_errors: true
+  register: docker_stacks_remove_result
+  when: docker_stacks_should_remove
+  changed_when: docker_stacks_remove_result.rc == 0
+  failed_when: false
 
 - name: Remove stack directory
   ansible.builtin.file:
     path: "{{ docker_stacks_base_dir }}/{{ stack_item.name }}"
     state: absent
   when:
-    - stack_should_remove
-    - stack_remove_result is succeeded
-
-- name: Display stack removal result
-  ansible.builtin.debug:
-    msg: |
-      🗑️ Stack {{ stack_item.name }} removal:
-      - Status: {{ 'REMOVED' if stack_remove_result.rc == 0 else 'FAILED' if stack_remove_result.rc is defined else 'NOT FOUND' }}
-      - Deploy Host: {{ docker_swarm_manager | default('localhost') }}
-      {% if stack_remove_result is defined %}
-      - Command: {{ stack_remove_result.cmd }}
-      {% if stack_remove_result.stderr %}
-      - Error: {{ stack_remove_result.stderr }}
-      {% endif %}
-      {% endif %}
-  when: stack_should_remove
+    - docker_stacks_should_remove
+    - docker_stacks_remove_result is succeeded

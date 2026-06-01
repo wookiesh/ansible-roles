@@ -38,7 +38,7 @@ uptimekuma_deployment_mode: "{{ 'stack' if docker_host_swarm_enabled | default(f
 
 ```yaml
 # group_vars/swarm_infra/vars.yaml
-uptimekuma_domain: "uptime.ops.ana.lu"
+uptimekuma_domain: "uptime.ops.example.com"
 ```
 
 ## Data persistence

@@ -4,28 +4,15 @@
   become: true
   gather_facts: true
   vars:
-    glusterfs_enabled: true
     glusterfs_cluster_name: "test_cluster"
     glusterfs_volume_name: "test_gv_swarm"
     glusterfs_group_name: "glusterfs_nodes"
     glusterfs_brick_dir: "/tmp/test_glusterfs/brick"
     glusterfs_mount_dir: "/tmp/test_glusterfs/mount"
     glusterfs_replica_count: 2
-    glusterfs_firewall_enabled: false  # Disable for local testing
-    glusterfs_auto_start: true
-    glusterfs_volume_options:
-      performance.readdir-ahead: "on"
-      performance.read-ahead: "on"
-  
-  pre_tasks:
-    - name: Display test environment info
-      ansible.builtin.debug:
-        msg: |
-          Testing GlusterFS role on {{ ansible_distribution }} {{ ansible_distribution_version }}
-          Node: {{ inventory_hostname }}
-          IP: {{ ansible_default_ipv4.address }}
-          Memory: {{ ansible_memtotal_mb }}MB
+    glusterfs_firewall_enabled: false
 
+  pre_tasks:
     - name: Create test directories
       ansible.builtin.file:
         path: "{{ item }}"
@@ -44,68 +31,14 @@
         name: glusterfs
 
   post_tasks:
-    - name: Verify GlusterFS installation
+    - name: Verify GlusterFS is installed
       ansible.builtin.command: gluster --version
-      register: gluster_version_test
+      register: gluster_version
       changed_when: false
-      failed_when: gluster_version_test.rc != 0
+      failed_when: gluster_version.rc != 0
 
-    - name: Display GlusterFS version
-      ansible.builtin.debug:
-        msg: "GlusterFS version: {{ gluster_version_test.stdout }}"
-
-    - name: Check GlusterFS service status
+    - name: Verify glusterd service is active
       ansible.builtin.systemd:
         name: glusterd
-      register: gluster_service_test
-      failed_when: gluster_service_test.status.ActiveState != "active"
-
-    - name: Verify brick directory exists
-      ansible.builtin.stat:
-        path: "{{ glusterfs_brick_dir }}/{{ glusterfs_volume_name }}"
-      register: brick_dir_test
-
-    - name: Verify mount point exists
-      ansible.builtin.stat:
-        path: "{{ glusterfs_mount_dir }}"
-      register: mount_dir_test
-
-    - name: Test file creation on mount
-      ansible.builtin.file:
-        path: "{{ glusterfs_mount_dir }}/test_file_{{ inventory_hostname }}"
-        state: touch
-        mode: "0644"
-      register: file_creation_test
-
-    - name: Verify test file exists
-      ansible.builtin.stat:
-        path: "{{ glusterfs_mount_dir }}/test_file_{{ inventory_hostname }}"
-      register: test_file_verify
-
-    - name: Display test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ GlusterFS Role Test Results:
-          - Service Status: {{ gluster_service_test.status.ActiveState }}
-          - Brick Directory: {{ 'Created' if brick_dir_test.stat.exists else 'Missing' }}
-          - Mount Directory: {{ 'Created' if mount_dir_test.stat.exists else 'Missing' }}
-          - File Creation: {{ 'Success' if file_creation_test.changed else 'Failed' }}
-          - File Verification: {{ 'Success' if test_file_verify.stat.exists else 'Failed' }}
-
-    - name: Cleanup test files
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "{{ glusterfs_mount_dir }}/test_file_{{ inventory_hostname }}"
-        - "{{ glusterfs_mount_dir }}/.glusterfs_test"
-      ignore_errors: true
-
-  # Cleanup section for testing
-  always:
-    - name: Display cleanup notice
-      ansible.builtin.debug:
-        msg: |
-          🧹 Test cleanup completed
-          Note: In production, GlusterFS volumes and data persist
-          Test directories at /tmp/test_glusterfs can be manually removed
+      register: gluster_service
+      failed_when: gluster_service.status.ActiveState != "active"

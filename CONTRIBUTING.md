@@ -1,6 +1,6 @@
 # Contributing to ansible-roles
 
-Generic Ansible roles consumed by homelab and ana-infra via `roles_path`.
+Generic Ansible roles consumed by any inventory via `roles_path`.
 
 ## Getting started
 

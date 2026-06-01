@@ -1,0 +1,66 @@
+---
+- name: Configure Mailcow via API
+  when: mailcow_api_key | length > 0
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  block:
+    - name: Provision mailboxes
+      ansible.builtin.uri:
+        url: "{{ mailcow_api_url }}/add/mailbox"
+        method: POST
+        headers:
+          X-API-Key: "{{ mailcow_api_key }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          local_part: "{{ item.local_part }}"
+          domain: "{{ item.domain }}"
+          name: "{{ item.name | default(item.local_part) }}"
+          password: "{{ item.password }}"
+          password2: "{{ item.password }}"
+          quota: "{{ item.quota | default(0) }}"
+          active: "{{ item.active | default('1') }}"
+        status_code: [200]
+      delegate_to: localhost
+      register: mailcow_mailbox_result
+      changed_when: >-
+        mailcow_mailbox_result.json
+        | selectattr('type', 'equalto', 'success')
+        | list | length > 0
+      failed_when: >-
+        mailcow_mailbox_result.json
+        | selectattr('type', 'equalto', 'danger')
+        | rejectattr('msg', 'search', 'mailbox_exists')
+        | list | length > 0
+      loop: "{{ mailcow_mailboxes }}"
+      loop_control:
+        label: "{{ item.local_part }}@{{ item.domain }}"
+
+    - name: Provision aliases
+      ansible.builtin.uri:
+        url: "{{ mailcow_api_url }}/add/alias"
+        method: POST
+        headers:
+          X-API-Key: "{{ mailcow_api_key }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          address: "{{ item.address }}"
+          goto: "{{ item.goto }}"
+          goto_regex: "{{ item.goto_regex | default('0') }}"
+          active: "{{ item.active | default('1') }}"
+        status_code: [200]
+      delegate_to: localhost
+      register: mailcow_alias_result
+      changed_when: >-
+        mailcow_alias_result.json
+        | selectattr('type', 'equalto', 'success')
+        | list | length > 0
+      failed_when: >-
+        mailcow_alias_result.json
+        | selectattr('type', 'equalto', 'danger')
+        | rejectattr('msg', 'search', 'alias_exists|is_alias_or_mailbox')
+        | list | length > 0
+      loop: "{{ mailcow_aliases }}"
+      loop_control:
+        label: "{{ item.address }}"

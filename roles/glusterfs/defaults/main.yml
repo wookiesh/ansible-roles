@@ -46,13 +46,18 @@ glusterfs_group_name: ""
 # Note: client.event-threads is deprecated in GlusterFS 7.x+
 glusterfs_volume_options:
   performance.readdir-ahead: "on"
-  performance.read-ahead: "on"
   performance.io-cache: "on"
   performance.quick-read: "on"
   performance.stat-prefetch: "on"
   server.event-threads: "4"
   storage.owner-uid: "0"
   storage.owner-gid: "0"
+
+# FUSE mount options
+glusterfs_mount_options: "defaults,_netdev"
+
+# Group for docker services (used to set volume root group ownership)
+glusterfs_services_group: "docker"
 
 # Brick configuration
 glusterfs_create_brick_dir: true

@@ -67,7 +67,9 @@
     name: python3-pip
     state: present
   become: true
-  when: traefik_deployment_mode == "swarm"
+  when:
+    - traefik_deployment_mode == "swarm"
+    - inventory_hostname == docker_swarm_manager
 
 - name: Install jsondiff dependency for docker_stack module
   ansible.builtin.pip:
@@ -75,7 +77,9 @@
     state: present
     extra_args: --break-system-packages
   become: true
-  when: traefik_deployment_mode == "swarm"
+  when:
+    - traefik_deployment_mode == "swarm"
+    - inventory_hostname == docker_swarm_manager
 
 - name: Deploy Traefik stack (Swarm mode)
   community.docker.docker_stack:
@@ -84,9 +88,11 @@
       - "{{ traefik_swarm_file }}"
     state: present
   register: traefik_swarm_deploy
-  when: traefik_deployment_mode == "swarm"
+  when:
+    - traefik_deployment_mode == "swarm"
+    - inventory_hostname == docker_swarm_manager
 
-- name: Wait for Traefik to be ready (Compose mode)
+- name: Wait for Traefik to be ready (Swarm mode)
   ansible.builtin.uri:
     url: "http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}/ping"
     method: GET
@@ -98,6 +104,7 @@
   when:
     - traefik_deployment_mode == "swarm"
     - traefik_static_config.ping | default(false)
+    - inventory_hostname == docker_swarm_manager
 
 - name: Verify Traefik containers are running (Compose mode)
   ansible.builtin.command:
@@ -113,18 +120,20 @@
   become: true
   register: traefik_services
   changed_when: false
-  when: traefik_deployment_mode == "swarm"
+  when:
+    - traefik_deployment_mode == "swarm"
+    - inventory_hostname == docker_swarm_manager
 
 - name: Display Traefik status
   ansible.builtin.debug:
     msg: |
-      🚀 Traefik deployment completed successfully!
+      Traefik deployment completed successfully!
 
       Configuration:
       - Mode: {{ traefik_deployment_mode }}
       - Dashboard: https://{{ traefik_domain }}
       - Whoami test: https://{{ traefik_whoami_domain }}
-      - Metrics: http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}
+      {% if traefik_static_config.entryPoints.metrics is defined %}- Metrics: http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}{% endif %}
       - Network: {{ traefik_network_name }} ({{ traefik_network_driver }})
 
       {% if traefik_deployment_mode == "compose" %}
@@ -142,7 +151,7 @@
       {% if traefik_deployment_mode == "swarm" %}
       - Use `docker stack services traefik` to monitor services
       {% endif %}
-  when: traefik_enabled
+  when: traefik_deployment_mode == "compose" or inventory_hostname == docker_swarm_manager | default('')
 
 - name: Display Traefik usage examples
   ansible.builtin.debug:
@@ -167,4 +176,3 @@
       Compose deployment:
       docker compose -f myapp.yaml up -d
       {% endif %}
-  when: traefik_enabled

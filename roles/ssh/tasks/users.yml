@@ -9,15 +9,17 @@
         mode: "0700"
         owner: "{{ item }}"
         group: "{{ item }}"
+      become: true
       loop: "{{ ssh_manage_users }}"
       when: ssh_manage_users is defined
 
     - name: Deploy SSH authorized keys
-      ansible.builtin.authorized_key:
+      ansible.posix.authorized_key:
         user: "{{ item.name }}"
         state: present
         key: "{{ item.key }}"
         exclusive: "{{ item.exclusive | default(false) }}"
+      become: true
       loop: "{{ ssh_authorized_keys }}"
       when: ssh_authorized_keys is defined
 
@@ -26,14 +28,16 @@
         name: "{{ item }}"
         groups: ssh-users
         append: true
+      become: true
       loop: "{{ ssh_ssh_users }}"
       when: ssh_ssh_users is defined
 
     - name: Remove SSH access for denied users
-      ansible.builtin.authorized_key:
+      ansible.posix.authorized_key:
         user: "{{ item }}"
         state: absent
         key: ""
+      become: true
       loop: "{{ ssh_deny_ssh_users }}"
       when: ssh_deny_ssh_users is defined
       register: ssh_deny_result
@@ -45,6 +49,7 @@
 - name: Generate SSH host keys (if missing)
   ansible.builtin.command:
     cmd: ssh-keygen -A
+  become: true
   args:
     creates: /etc/ssh/ssh_host_ed25519_key
   notify: Restart SSH
@@ -55,6 +60,7 @@
     mode: "0600"
     owner: root
     group: root
+  become: true
   loop:
     - /etc/ssh/ssh_host_rsa_key
     - /etc/ssh/ssh_host_ecdsa_key

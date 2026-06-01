@@ -1,0 +1,77 @@
+networks:
+  {{ outline_network }}:
+    external: true
+  internal:
+
+services:
+  outline:
+    image: {{ outline_image }}
+    env_file: docker.env
+    expose:
+      - "3000"
+    volumes:
+      - storage-data:/var/lib/outline/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - {{ outline_network }}
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - wud.tag.include=\d+\.\d+\.\d+
+      - wud.tag.exclude=^(.*?)(rc|beta|alpha|dev|pre|fix|nightly|base|32bit).*$
+      - traefik.enable=true
+      - traefik.http.routers.outline.rule=Host(`{{ outline_fqdn }}`)
+      - traefik.http.routers.outline.tls.certresolver={{ traefik_certresolver }}
+      - traefik.http.services.outline.loadbalancer.server.port=3000
+
+  redis:
+    image: {{ outline_redis_image }}
+    expose:
+      - "6379"
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 3
+    labels:
+      - wud.tag.include=\d+\.\d+\.\d+
+      - wud.tag.exclude=^(.*?)(rc|beta|alpha|dev|pre|fix|nightly|base|32bit).*$
+
+  postgres:
+    image: {{ outline_postgres_image }}
+    expose:
+      - "5432"
+    networks:
+      - internal
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: "{{ outline_pg_user }}"
+      POSTGRES_PASSWORD: "{{ outline_pg_password }}"
+      POSTGRES_DB: "{{ outline_pg_db }}"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "{{ outline_pg_db }}", "-U", "{{ outline_pg_user }}"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      - wud.tag.include=\d+\.\d+\.\d+
+      - wud.tag.exclude=^(.*?)(rc|beta|alpha|dev|pre|fix|nightly|base|32bit).*$
+
+volumes:
+  storage-data:
+  database-data:

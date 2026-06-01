@@ -12,6 +12,9 @@ server_auto_update_config_file: "/etc/apt/apt.conf.d/20auto-upgrades"
 server_apticron_enabled: false
 server_apticron_email: root
 
+# Journald
+server_journald_max_use: "200M"
+
 # System Performance
 server_performance_tuning_enabled: false
 server_performance_swappiness: 10

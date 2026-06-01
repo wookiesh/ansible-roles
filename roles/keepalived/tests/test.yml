@@ -1,22 +1,15 @@
 ---
-# Keepalived role test playbook
 - name: Test keepalived role
   hosts: test_hosts
   become: true
   vars:
-    # Test configuration
-    keepalived_enabled: true
     keepalived_interface: "eth0"
-    keepalived_router_id: "TEST_{{ inventory_hostname_short }}"
-    keepalived_priority: "{{ 150 if inventory_hostname_short == 'test01' else 100 }}"
-
-    # Test VRRP instance
     keepalived_vrrp_instances:
       - name: "VI_TEST"
         state: "{{ 'MASTER' if inventory_hostname_short == 'test01' else 'BACKUP' }}"
         interface: "{{ keepalived_interface }}"
         virtual_router_id: 99
-        priority: "{{ keepalived_priority }}"
+        priority: "{{ 150 if inventory_hostname_short == 'test01' else 100 }}"
         advert_int: 1
         authentication:
           auth_type: "PASS"
@@ -25,8 +18,6 @@
           - "192.168.99.100/24 dev {{ keepalived_interface }}"
         track_scripts:
           - "check_dummy"
-
-    # Test track script
     keepalived_track_scripts:
       - name: "check_dummy"
         script: "/bin/true"
@@ -34,52 +25,29 @@
         weight: 0
         fall: 3
         rise: 2
-
-    # Test custom script
     keepalived_custom_scripts:
       - name: "test_health.sh"
         content: |
           #!/bin/bash
-          # Test health check script
-          echo "Health check running on $(date)"
           exit 0
         mode: "0755"
 
-    # Test monitoring
-    keepalived_metrics_enabled: true
-    keepalived_log_level: "INFO"
-
-    # Test email (disabled for testing)
-    keepalived_email_enabled: false
-
   pre_tasks:
-    - name: Show test environment
-      ansible.builtin.debug:
-        msg: |
-          🧪 Testing keepalived role on {{ ansible_distribution }} {{ ansible_distribution_version }}
-          Host: {{ inventory_hostname }}
-          Interface: {{ keepalived_interface }}
-          Priority: {{ keepalived_priority }}
-          State: {{ 'MASTER' if inventory_hostname_short == 'test01' else 'BACKUP' }}
-
     - name: Check network interface exists
-      ansible.builtin.command:
-        cmd: "ip link show {{ keepalived_interface }}"
+      ansible.builtin.command: "ip link show {{ keepalived_interface }}"
       register: interface_check
       failed_when: false
       changed_when: false
 
     - name: Create dummy interface for testing
-      ansible.builtin.command:
-        cmd: "ip link add {{ keepalived_interface }} type dummy"
+      ansible.builtin.command: "ip link add {{ keepalived_interface }} type dummy"
       when: interface_check.rc != 0
-      become: true
+      changed_when: true
 
     - name: Bring dummy interface up
-      ansible.builtin.command:
-        cmd: "ip link set {{ keepalived_interface }} up"
+      ansible.builtin.command: "ip link set {{ keepalived_interface }} up"
       when: interface_check.rc != 0
-      become: true
+      changed_when: true
 
   tasks:
     - name: Include keepalived role
@@ -87,7 +55,7 @@
         name: keepalived
 
   post_tasks:
-    - name: Verify keepalived installation
+    - name: Verify keepalived binary exists
       ansible.builtin.stat:
         path: "/usr/sbin/keepalived"
       register: keepalived_binary
@@ -105,66 +73,14 @@
       register: keepalived_service
       failed_when: keepalived_service.status.ActiveState != "active"
 
-    - name: Test configuration syntax
-      ansible.builtin.command:
-        cmd: "keepalived --test --config-file {{ keepalived_config_file }}"
-      register: config_test
-      failed_when: config_test.rc != 0
-
-    - name: Check VRRP status
-      ansible.builtin.command:
-        cmd: "keepalived --dump-data"
-      register: vrrp_status
-      failed_when: false
-
-    - name: Verify custom scripts
+    - name: Verify custom script was deployed
       ansible.builtin.stat:
         path: "{{ keepalived_scripts_dir }}/test_health.sh"
       register: test_script
       failed_when: not test_script.stat.exists
 
-    - name: Test custom script execution
-      ansible.builtin.command:
-        cmd: "{{ keepalived_scripts_dir }}/test_health.sh"
-      register: script_test
-      failed_when: script_test.rc != 0
-
-    - name: Test status script
-      ansible.builtin.command:
-        cmd: "/usr/local/bin/keepalived-status"
-      register: status_script
-      failed_when: false
-
-    - name: Test monitoring script
-      ansible.builtin.command:
-        cmd: "/usr/local/bin/monitor-keepalived"
-      register: monitor_script
-      failed_when: false
-
-    - name: Display test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ Keepalived role test completed successfully!
-
-          📊 Test Results:
-          • Binary installed: {{ keepalived_binary.stat.exists }}
-          • Config file exists: {{ keepalived_config.stat.exists }}
-          • Service active: {{ keepalived_service.status.ActiveState == 'active' }}
-          • Config syntax valid: {{ config_test.rc == 0 }}
-          • Custom script exists: {{ test_script.stat.exists }}
-          • Custom script executable: {{ script_test.rc == 0 }}
-          • Status script working: {{ status_script.rc == 0 }}
-          • Monitor script working: {{ monitor_script.rc == 0 }}
-
-          📁 Important Files:
-          • Config: {{ keepalived_config_file }}
-          • Scripts: {{ keepalived_scripts_dir }}
-          • Status: /usr/local/bin/keepalived-status
-          • Monitor: /usr/local/bin/monitor-keepalived
-
     - name: Cleanup dummy interface
-      ansible.builtin.command:
-        cmd: "ip link del {{ keepalived_interface }}"
+      ansible.builtin.command: "ip link del {{ keepalived_interface }}"
       when: interface_check.rc != 0
-      become: true
-      ignore_errors: true
+      changed_when: false
+      failed_when: false

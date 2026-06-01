@@ -2,6 +2,6 @@
 beszel_image: "henrygd/beszel:latest"
 beszel_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/beszel"
 beszel_deployment_mode: "{{ 'stack' if docker_host_swarm_enabled | default(false) else 'compose' }}"
-beszel_domain: "monitor.{{ server_domain | default('ana.lu') }}"
+beszel_domain: "monitor.{{ server_domain }}"
 beszel_network: "{{ traefik_network_name | default('traefik_public') }}"
 beszel_swarm_placement_node: "{{ docker_swarm_manager | default('') }}"

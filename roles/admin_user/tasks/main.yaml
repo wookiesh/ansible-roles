@@ -25,6 +25,7 @@
 
 - name: Check for interrupted dpkg
   ansible.builtin.command: dpkg --configure -a
+  become: true
   register: admin_user_dpkg_configure
   failed_when: false
   changed_when: admin_user_dpkg_configure.rc != 0
@@ -35,6 +36,7 @@
     while fuser /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock >/dev/null 2>&1; do
       sleep 2
     done
+  become: true
   changed_when: false
   when: ansible_os_family == "Debian"
 
@@ -44,10 +46,10 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
+  become: true
   when: admin_user_packages is defined
 
 - name: Create admin user and grant sudo access
-  become: true
   ansible.builtin.user:
     name: "{{ admin_user_name }}"
     groups: "{{ admin_user_groups }}"
@@ -55,14 +57,18 @@
     shell: "{{ admin_user_shell }}"
     create_home: true
     password: "{{ admin_user_password_hash }}"
+  become: true
+
 - name: Ensure user group exists
   ansible.builtin.group:
     name: "{{ admin_user_name }}"
     state: present
+  become: true
 
 - name: "Set up SSH authorized key for {{ admin_user_name }}"
   ansible.posix.authorized_key:
     user: "{{ admin_user_name }}"
     key: "{{ admin_user_ssh_key }}"
     state: present
+  become: true
   when: not ansible_check_mode

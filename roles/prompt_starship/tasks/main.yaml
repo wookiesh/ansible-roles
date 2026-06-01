@@ -3,7 +3,7 @@
   ansible.builtin.user:
     name: "{{ admin_user_name }}"
     state: present
-  register: admin_user_info
+  register: prompt_starship_admin_user_info
   become: true
 
 - name: Ensure en_US.UTF-8 locale is enabled
@@ -58,7 +58,7 @@
 
 - name: Check if standard .zshrc exists
   ansible.builtin.stat:
-    path: "{{ admin_user_info.home }}/.zshrc"
+    path: "{{ prompt_starship_admin_user_info.home }}/.zshrc"
   register: prompt_starship_standard_zshrc
 
 - name: Ensure Starship is added to ZDOTDIR config if it exists
@@ -71,7 +71,7 @@
 
 - name: Ensure Starship is added to standard .zshrc if it exists
   ansible.builtin.lineinfile:
-    path: "{{ admin_user_info.home }}/.zshrc"
+    path: "{{ prompt_starship_admin_user_info.home }}/.zshrc"
     line: 'eval "$(starship init zsh)"'
     create: false
     owner: "{{ admin_user_name }}"

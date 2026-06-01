@@ -11,6 +11,7 @@
     - { key: "inet_interfaces", value: "all" }
     - { key: "relay_domains", value: "{{ smtp_relay_domains | join(',') }}" }
     - { key: "mydestination", value: "$myhostname, localhost.$mydomain, localhost" }
+  become: true
   notify:
     - Restart postfix
   tags:
@@ -24,6 +25,7 @@
     owner: root
     group: root
     backup: true
+  become: true
   when:
     - smtp_sasl_auth_enable
     - smtp_sasl_user | length > 0
@@ -43,6 +45,7 @@
     mode: "{{ item.mode }}"
     backup: true
   loop: "{{ smtp_relay_config_files }}"
+  become: true
   notify:
     - Restart postfix
   tags:
@@ -66,6 +69,7 @@
       value: "permit_mynetworks, reject_unauth_destination"
     - key: "smtpd_recipient_restrictions"
       value: "permit_mynetworks, reject_non_fqdn_recipient, reject_unknown_recipient_domain, reject_unauth_destination, reject_unlisted_recipient"
+  become: true
   notify:
     - Restart postfix
   tags:
@@ -78,17 +82,18 @@
     {% if smtp_external_relayhost | length > 0 %}
     echo "=== Testing External Relay Connectivity ==="
     timeout 5 bash -c "</dev/tcp/{{ smtp_external_relayhost }}/{{ smtp_external_relayhost_port }}" \
-      && echo "✅ External relay reachable" || echo "❌ External relay not reachable"
+      && echo "External relay reachable" || echo "External relay not reachable"
     {% endif %}
     echo "=== Checking SASL Configuration ==="
     {% if smtp_sasl_auth_enable and smtp_sasl_user | length > 0 %}
-    echo "✅ SASL authentication configured"
+    echo "SASL authentication configured"
     {% else %}
-    echo "ℹ️  SASL authentication not configured"
+    echo "SASL authentication not configured"
     {% endif %}
   args:
     executable: /bin/bash
   register: smtp_relayhost_test
+  become: true
   changed_when: false
   failed_when: false
   tags:

@@ -3,27 +3,23 @@
   hosts: test_hosts
   become: true
   vars:
-    traefik_enabled: true
     traefik_domain: "traefik.test.local"
     vault_cloudflare_dns_api_token: "test_token"
-    vault_letsencrypt_email: "test@example.com"
-  pre_tasks:
-    - name: Show test environment
-      ansible.builtin.debug:
-        msg: "Testing Traefik on {{ ansible_distribution }}"
+
   tasks:
     - name: Include Traefik role
       ansible.builtin.include_role:
         name: traefik
+
   post_tasks:
-    - name: Verify Traefik installation
+    - name: Verify install directory exists
       ansible.builtin.stat:
         path: "{{ traefik_install_dir }}"
-      register: traefik_test_install
-      failed_when: not traefik_test_install.stat.exists
+      register: traefik_dir
+      failed_when: not traefik_dir.stat.exists
 
-    - name: Verify Traefik configuration
+    - name: Verify compose file exists
       ansible.builtin.stat:
         path: "{{ traefik_compose_file }}"
-      register: traefik_test_config
-      failed_when: not traefik_test_config.stat.exists
+      register: traefik_compose
+      failed_when: not traefik_compose.stat.exists

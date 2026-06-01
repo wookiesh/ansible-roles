@@ -24,10 +24,9 @@
   become: true
 
 - name: Reset Docker daemon failure state
-  ansible.builtin.systemd:
-    name: docker
-    state: reset-failed
+  ansible.builtin.command: systemctl reset-failed docker
   become: true
+  changed_when: false
 
 - name: Flush Docker daemon logs
   ansible.builtin.command: journalctl --flush

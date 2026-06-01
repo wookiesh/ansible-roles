@@ -6,8 +6,8 @@
       cd "{{ dotfiles_user_dest }}"
       {{ item }}
   loop: "{{ dotfiles_custom_scripts }}"
-  register: custom_script_output
-  changed_when: custom_script_output.rc == 0
-  failed_when: custom_script_output.rc != 0
+  register: dotfiles_custom_script_output
+  changed_when: dotfiles_custom_script_output.rc == 0
+  failed_when: dotfiles_custom_script_output.rc != 0
   loop_control:
     label: "{{ item }}"

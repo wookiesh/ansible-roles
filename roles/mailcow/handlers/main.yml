@@ -1,0 +1,6 @@
+---
+- name: Restart postfix-mailcow
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ mailcow_install_dir }}/compose.yaml restart postfix-mailcow"
+  become: true
+  changed_when: true

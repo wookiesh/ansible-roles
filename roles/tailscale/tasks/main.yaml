@@ -81,14 +81,18 @@
       register: tailscale_repo_list_check
 
     - name: Add Tailscale GPG key
-      ansible.builtin.shell: |
-        curl -fsSL {{ tailscale_repository_key_url }} | tee {{ tailscale_repository_key_path }} >/dev/null
+      ansible.builtin.get_url:
+        url: "{{ tailscale_repository_key_url }}"
+        dest: "{{ tailscale_repository_key_path }}"
+        mode: "0644"
       when: not tailscale_gpg_key_check.stat.exists
       register: tailscale_gpg_key
 
     - name: Add Tailscale repository list
-      ansible.builtin.shell: |
-        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.tailscale-keyring.list | tee {{ tailscale_repository_list_path }}
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.tailscale-keyring.list"
+        dest: "{{ tailscale_repository_list_path }}"
+        mode: "0644"
       when: not tailscale_repo_list_check.stat.exists
       register: tailscale_repo_list
 
@@ -123,12 +127,13 @@
       register: tailscale_script_download
 
     - name: Run Tailscale install script
-      ansible.builtin.shell: /tmp/tailscale_install.sh
+      ansible.builtin.command: /tmp/tailscale_install.sh  # noqa: command-instead-of-shell
       args:
         creates: /usr/sbin/tailscale
       environment:
         TS_INSTALL_METHOD: "{{ tailscale_install_method }}"
       register: tailscale_script_install
+      changed_when: tailscale_script_install.rc == 0
       when: tailscale_script_download is succeeded
 
 - name: Check if Tailscale config exists
@@ -194,6 +199,7 @@
   environment:
     TS_AUTHKEY: "{{ tailscale_auth_key }}"
   register: tailscale_auth_result
+  changed_when: tailscale_auth_result.rc == 0
   retries: 3
   delay: 10
   until: tailscale_auth_result is succeeded
@@ -207,6 +213,7 @@
 - name: Authenticate with Tailscale (oauth)
   ansible.builtin.command: tailscale up --auth=oauth
   register: tailscale_oauth_result
+  changed_when: tailscale_oauth_result.rc == 0
   when:
     - tailscale_enabled
     - tailscale_needs_auth
@@ -236,6 +243,7 @@
     --advertise-tags={{ tailscale_tags | join(',') if tailscale_tags else '' }}
     --reset={{ tailscale_reset | ternary('true', 'false') }}
   register: tailscale_network_config
+  changed_when: tailscale_network_config.rc == 0
   when:
     - tailscale_enabled
     - tailscale_needs_network_config

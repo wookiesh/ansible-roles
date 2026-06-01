@@ -1,5 +1,4 @@
 ---
-# Keepalived role handlers
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: true
@@ -59,6 +58,7 @@
   ansible.builtin.command:
     cmd: "sysctl --system"
   become: true
+  changed_when: false
 
 - name: Restart firewall
   ansible.builtin.systemd:
@@ -71,15 +71,17 @@
   ansible.builtin.command:
     cmd: "ufw --reload"
   become: true
+  changed_when: false
   when: ansible_os_family == "Debian" and "'ufw' in ansible_facts.packages"
 
 - name: Flush ip routes
   ansible.builtin.command:
     cmd: "ip route flush cache"
   become: true
+  changed_when: false
 
 - name: Send notification email
-  ansible.builtin.mail:
+  community.general.mail:
     to: "{{ item }}"
     subject: "Keepalived Notification - {{ ansible_fqdn }}"
     body: |
@@ -104,28 +106,26 @@
   when:
     - keepalived_notify_scripts | length > 0
     - item.script is defined
+  changed_when: false
   failed_when: false
 
 - name: Reload nftables
   ansible.builtin.command:
     cmd: nft --file /etc/nftables.conf
   when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '>=')
+  changed_when: false
   listen: "reload nftables"
 
 - name: Reload iptables
   ansible.builtin.command:
     cmd: iptables-restore < /etc/iptables/rules.v4
   when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '<')
+  changed_when: false
   listen: "reload iptables"
 
 - name: Reload iptables-legacy
   ansible.builtin.command:
     cmd: iptables-legacy-restore < /etc/iptables/rules.v4
   when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '>=')
+  changed_when: false
   listen: "reload iptables"
-
-- name: Reload nftables
-  ansible.builtin.command:
-    cmd: nft --file /etc/nftables.conf
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '>=')
-  listen: "reload nftables"

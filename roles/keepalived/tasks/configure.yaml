@@ -102,14 +102,15 @@
   ansible.builtin.command:
     cmd: "ls -la {{ keepalived_scripts_dir }}/{{ item.item.name }}"
   loop: "{{ custom_script_result.results | default([]) }}"
-  register: script_exists_check
+  register: keepalived_script_exists_check
   become: true
   failed_when: false
+  changed_when: false
 
 - name: Display script existence check
   ansible.builtin.debug:
     msg: "Script existence check for {{ item.item.item.name }}: {{ item.stdout | default('ERROR: ' + item.stderr) }}"
-  loop: "{{ script_exists_check.results | default([]) }}"
+  loop: "{{ keepalived_script_exists_check.results | default([]) }}"
   become: false
 
 - name: Ensure /usr/local/bin directory exists
@@ -175,13 +176,13 @@
   when:
     - keepalived_notify_scripts | length > 0
     - item.content is defined
-  register: script_stats
+  register: keepalived_script_stats
   become: false
 
 - name: Display script creation status
   ansible.builtin.debug:
     msg: "Script {{ item.item.name }} exists: {{ item.stat.exists }}, path: {{ item.item.script }}"
-  loop: "{{ script_stats.results }}"
+  loop: "{{ keepalived_script_stats.results }}"
   when:
     - keepalived_notify_scripts | length > 0
   become: false
@@ -194,6 +195,7 @@
     owner: "{{ keepalived_config_owner }}"
     group: "{{ keepalived_config_group }}"
     backup: "{{ keepalived_config_backup }}"
+  become: true
   notify: Restart keepalived
   register: keepalived_config_result
 
@@ -214,6 +216,7 @@
     owner: "{{ keepalived_config_owner }}"
     group: "{{ keepalived_config_group }}"
     backup: "{{ keepalived_config_backup }}"
+  become: true
   when: keepalived_enable_non_root or keepalived_metrics_enabled
   notify: Restart keepalived
 
@@ -224,6 +227,7 @@
     mode: "0644"
     owner: root
     group: root
+  become: true
   when: keepalived_log_dir != "/var/log" or keepalived_log_file != "/var/log/keepalived.log"
 
 - name: Create stats socket directory
@@ -239,20 +243,17 @@
 - name: Check if ufw is installed
   ansible.builtin.command:
     cmd: "which ufw"
-  register: ufw_check
+  register: keepalived_ufw_check
   changed_when: false
   failed_when: false
 
 - name: Configure firewall for VRRP (ufw)
-  community.general.ufw:
-    rule: allow
-    to_port: "112"
-    proto: vrrp
-    comment: "Allow VRRP for keepalived"
+  ansible.builtin.command: ufw allow proto vrrp from any to any comment "Allow VRRP for keepalived"
   when:
     - ansible_os_family == "Debian"
-    - ufw_check.rc == 0
+    - keepalived_ufw_check.rc == 0
   become: true
+  changed_when: true
   failed_when: false
 
 - name: Configure firewall for VRRP (firewalld)
@@ -268,10 +269,9 @@
   failed_when: false
 
 - name: Check if nftables is active
-  ansible.builtin.command:
-    cmd: "systemctl is-active nftables"
-  register: nftables_check
-  changed_when: false
+  ansible.builtin.systemd:
+    name: nftables
+  register: keepalived_nftables_check
   failed_when: false
 
 - name: Configure nftables for VRRP and ICMP return traffic
@@ -282,7 +282,8 @@
   when:
     - ansible_distribution == "Ubuntu"
     - ansible_distribution_version is version('24.04', '>=')
-    - nftables_check.rc == 0
+    - keepalived_nftables_check.status is defined
+    - keepalived_nftables_check.status.ActiveState == "active"
   notify: Reload nftables
   become: true
   failed_when: false

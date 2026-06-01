@@ -9,4 +9,4 @@ docker_stacks_enabled: false
 docker_stacks_base_dir: "{{ docker_host_services_root | default('/opt/docker') }}/stacks"
 
 # Deploy host (only deploy stacks on this host)
-docker_swarm_manager: "localhost"
+docker_swarm_manager: "localhost" # noqa: var-naming[no-role-prefix]

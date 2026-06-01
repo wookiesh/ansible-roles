@@ -3,13 +3,16 @@
   ansible.builtin.systemd:
     name: postfix
     state: restarted
+  become: true
 
 - name: Run newaliases
   ansible.builtin.command: newaliases
+  become: true
   changed_when: false
 
 - name: Postmap sasl_passwd
   ansible.builtin.command: postmap /etc/postfix/sasl_passwd
+  become: true
   changed_when: false
   when:
     - smtp_sasl_auth_enable | default(false)

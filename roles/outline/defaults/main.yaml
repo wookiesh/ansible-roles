@@ -1,0 +1,45 @@
+---
+outline_image_tag: "1.7.1"
+outline_image: "docker.getoutline.com/outlinewiki/outline:{{ outline_image_tag }}"
+outline_postgres_image_tag: "17.6-alpine"
+outline_postgres_image: "postgres:{{ outline_postgres_image_tag }}"
+outline_redis_image_tag: "8.2.2-alpine"
+outline_redis_image: "redis:{{ outline_redis_image_tag }}"
+
+outline_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/outline"
+outline_fqdn: "wiki.{{ base_domain }}"
+outline_network: "{{ traefik_network_name | default('traefik_public') }}"
+
+# App
+outline_web_concurrency: 1
+outline_language: "en_US"
+outline_file_storage: "local"
+outline_file_storage_local_root_dir: "/var/lib/outline/data"
+outline_file_storage_upload_max_size: 262144000
+outline_force_https: "false"
+
+# Postgres
+outline_pg_user: "outline"
+outline_pg_db: "outline"
+# outline_pg_password: vault
+
+# SMTP
+outline_smtp_host: ""
+outline_smtp_port: 25
+outline_smtp_secure: "false"
+outline_smtp_from_email: "Outline <outline@{{ base_domain }}>"
+
+# OIDC
+outline_oidc_display_name: "authentik"
+outline_oidc_username_claim: "preferred_username"
+outline_oidc_scopes: "openid profile email"
+# outline_oidc_client_id:     vault
+# outline_oidc_client_secret: vault
+# outline_oidc_auth_uri:      vault
+# outline_oidc_token_uri:     vault
+# outline_oidc_userinfo_uri:  vault
+# outline_oidc_logout_uri:    vault
+
+# Secrets — no defaults, must be provided via vault
+# outline_secret_key:   vault
+# outline_utils_secret: vault

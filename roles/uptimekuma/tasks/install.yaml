@@ -25,6 +25,5 @@
     group: "{{ docker_host_services_group | default('docker') }}"
     mode: "0640"
   become: true
-  run_once: "{{ uptimekuma_deployment_mode == 'stack' }}"
-  delegate_to: "{{ docker_swarm_manager if uptimekuma_deployment_mode == 'stack' else inventory_hostname }}"
-  notify: deploy uptimekuma
+  when: uptimekuma_deployment_mode == "compose" or inventory_hostname == docker_swarm_manager
+  notify: Deploy Uptime Kuma stack

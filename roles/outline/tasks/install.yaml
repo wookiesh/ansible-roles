@@ -1,0 +1,30 @@
+---
+- name: Create Outline install directory
+  ansible.builtin.file:
+    path: "{{ outline_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Deploy Outline compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ outline_install_dir }}/compose.yaml"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  notify: Deploy Outline stack
+
+- name: Deploy Outline environment file
+  ansible.builtin.template:
+    src: docker.env.j2
+    dest: "{{ outline_install_dir }}/docker.env"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  no_log: true
+  notify: Deploy Outline stack

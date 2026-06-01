@@ -7,13 +7,21 @@
   ansible.builtin.systemd:
     name: "{{ item }}"
     state: restarted
+  become: true
   loop:
     - systemd-networkd
     - NetworkManager
-  ignore_errors: true
+  failed_when: false
+
+- name: Restart systemd-journald
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted
+  become: true
 
 - name: Restart unattended-upgrades
   ansible.builtin.systemd:
     name: unattended-upgrades
     state: restarted
+  become: true
   when: server_automatic_updates_enabled

@@ -11,7 +11,7 @@
       - ".profile"
       - ".bash_profile"
     file_type: file
-  register: existing_dotfiles
+  register: dotfiles_existing_dotfiles
 
 - name: Create backup directory
   ansible.builtin.file:
@@ -20,7 +20,7 @@
     mode: "0755"
     owner: "{{ admin_user_name }}"
     group: "{{ admin_user_name }}"
-  when: existing_dotfiles.files | length > 0
+  when: dotfiles_existing_dotfiles.files | length > 0
   become: true
 
 - name: Backup existing dotfiles
@@ -31,8 +31,8 @@
     mode: preserve
     owner: "{{ admin_user_name }}"
     group: "{{ admin_user_name }}"
-  loop: "{{ existing_dotfiles.files }}"
-  when: existing_dotfiles.files | length > 0
+  loop: "{{ dotfiles_existing_dotfiles.files }}"
+  when: dotfiles_existing_dotfiles.files | length > 0
   loop_control:
     label: "{{ item.path | basename }}"
   become: true

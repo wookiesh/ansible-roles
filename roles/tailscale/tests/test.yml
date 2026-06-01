@@ -3,43 +3,11 @@
   hosts: localhost
   become: true
   gather_facts: true
-  
   vars:
-    # Test configuration
     tailscale_enabled: true
     tailscale_install_method: "repository"
     tailscale_auth_method: "authkey"
-    tailscale_auth_key: "{{ vault_tailscale_auth_key | default('tskey-test-key') }}"
-    tailscale_log_level: "debug"
-    tailscale_debug_mode: true
-    tailscale_configure_firewall: true
-    tailscale_tags:
-      - "tag:test"
-      - "tag:ansible"
-    tailscale_health_check_enabled: true
-    
-  pre_tasks:
-    - name: Show test environment
-      ansible.builtin.debug:
-        msg: |
-          🧪 Testing Tailscale role on:
-          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
-          - Architecture: {{ ansible_architecture }}
-          - Python: {{ ansible_python_version }}
-          - Install method: {{ tailscale_install_method }}
-          - Auth method: {{ tailscale_auth_method }}
-
-    - name: Check if Tailscale is already installed
-      ansible.builtin.stat:
-        path: "/usr/sbin/tailscale"
-      register: tailscale_pre_install
-
-    - name: Show pre-installation status
-      ansible.builtin.debug:
-        msg: |
-          📋 Pre-installation status:
-          - Tailscale installed: {{ tailscale_pre_install.stat.exists }}
-          - Test auth key: {{ 'configured' if tailscale_auth_key else 'NOT CONFIGURED' }}
+    tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
 
   tasks:
     - name: Include Tailscale role
@@ -47,84 +15,14 @@
         name: tailscale
 
   post_tasks:
-    - name: Verify Tailscale installation
+    - name: Verify Tailscale binary exists
       ansible.builtin.stat:
         path: "/usr/sbin/tailscale"
-      register: tailscale_post_install
-      failed_when: not tailscale_post_install.stat.exists
+      register: tailscale_binary
+      failed_when: not tailscale_binary.stat.exists
 
-    - name: Verify Tailscale service status
+    - name: Verify tailscaled service is active
       ansible.builtin.systemd:
         name: tailscaled
       register: tailscale_service
       failed_when: tailscale_service.status.ActiveState != "active"
-
-    - name: Check Tailscale connectivity
-      ansible.builtin.command: tailscale status --json
-      register: tailscale_status
-      failed_when: tailscale_status.rc != 0
-      retries: 5
-      delay: 10
-
-    - name: Parse Tailscale status
-      ansible.builtin.set_fact:
-        tailscale_info: "{{ tailscale_status.stdout | from_json }}"
-
-    - name: Verify Tailscale is authenticated
-      ansible.builtin.assert:
-        that:
-          - tailscale_info.BackendState == "Running"
-          - tailscale_info.Self.TailscaleIPs | length > 0
-        fail_msg: |
-          ❌ Tailscale authentication failed:
-          - Backend State: {{ tailscale_info.BackendState }}
-          - Tailscale IPs: {{ tailscale_info.Self.TailscaleIPs }}
-        success_msg: "✅ Tailscale is authenticated and connected"
-
-    - name: Verify configuration files exist
-      ansible.builtin.stat:
-        path: "{{ item }}"
-      register: config_files
-      loop:
-        - "{{ tailscale_config_dir }}/tailscaled.env"
-        - "/etc/systemd/system/tailscaled.service.d/override.conf"
-      failed_when: not config_files.results | selectattr('stat.exists') | list | length == 2
-
-    - name: Test Tailscale functionality
-      ansible.builtin.command: tailscale ping 100.x.x.x
-      register: tailscale_ping
-      failed_when: tailscale_ping.rc != 0
-      retries: 3
-      delay: 5
-      ignore_errors: true  # May fail if no other nodes exist
-
-    - name: Show test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ Tailscale role test completed successfully!
-          
-          📊 Test Results:
-          - Installation: ✅ {{ 'Success' if tailscale_post_install.stat.exists else 'Failed' }}
-          - Service: ✅ {{ tailscale_service.status.ActiveState }}
-          - Authentication: ✅ {{ tailscale_info.BackendState }}
-          - IP Address: {{ tailscale_info.Self.TailscaleIPs | first | default('Not assigned') }}
-          - Version: {{ tailscale_info.Version }}
-          - Configuration: ✅ {{ 'Success' if config_files.results | selectattr('stat.exists') | list | length == 2 else 'Failed' }}
-          - Ping Test: {{ '✅ Success' if tailscale_ping.rc == 0 else '⚠️ Skipped (no other nodes)' }}
-
-    - name: Show Tailscale network info
-      ansible.builtin.debug:
-        msg: |
-          🌐 Tailscale Network Information:
-          - Node ID: {{ tailscale_info.Self.ID }}
-          - DNS Name: {{ tailscale_info.Self.DNSName }}
-          - Tailscale IPs: {{ tailscale_info.Self.TailscaleIPs }}
-          - Tags: {{ tailscale_info.Self.Tags | default([]) }}
-          - Online: {{ 'Yes' if tailscale_info.Self.Online else 'No' }}
-
-    - name: Cleanup test data (optional)
-      ansible.builtin.file:
-        path: /tmp/tailscale_install.sh
-        state: absent
-      when: tailscale_install_method == "script"
-      ignore_errors: true

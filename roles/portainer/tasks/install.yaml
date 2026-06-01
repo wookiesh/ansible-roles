@@ -16,6 +16,5 @@
     group: "{{ docker_host_services_group | default('docker') }}"
     mode: "0640"
   become: true
-  run_once: "{{ portainer_deployment_mode == 'stack' }}"
-  delegate_to: "{{ docker_swarm_manager if portainer_deployment_mode == 'stack' else inventory_hostname }}"
-  notify: deploy portainer
+  when: portainer_deployment_mode == "compose" or inventory_hostname == docker_swarm_manager
+  notify: Deploy Portainer stack

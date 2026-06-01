@@ -12,6 +12,7 @@
     - { key: "mydestination", value: "" }
     - { key: "local_transport", value: "error: local delivery disabled" }
     - { key: "local_recipient_maps", value: "" }
+  become: true
   notify: Restart postfix
 
 - name: Disable unnecessary services for null client
@@ -24,6 +25,7 @@
   loop:
     - { service: "smtp", config: "inet  n       -       y       -       -       smtpd" }
     - { service: "submission", config: "inet  n       -       y       -       -       smtpd" }
+  become: true
   notify: Restart postfix
   when: false  # Keep default services for flexibility
 
@@ -32,9 +34,10 @@
     echo "=== Null Client Configuration ==="
     postconf relayhost inet_interfaces mydestination local_transport
     echo "=== Testing Relay Host Connectivity ==="
-    timeout 5 bash -c "</dev/tcp/{{ smtp_relayhost }}/{{ smtp_relayhost_port }}" && echo "✅ Relay host reachable" || echo "❌ Relay host not reachable"
+    timeout 5 bash -c "</dev/tcp/{{ smtp_relayhost }}/{{ smtp_relayhost_port }}" && echo "Relay host reachable" || echo "Relay host not reachable"
   args:
     executable: /bin/bash
   register: smtp_null_client_test
+  become: true
   changed_when: false
   failed_when: false

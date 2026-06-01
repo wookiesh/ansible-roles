@@ -1,0 +1,3 @@
+{% for alias in mailcow_regex_aliases %}
+/{{ alias.pattern }}/    {{ alias.goto }}
+{% endfor %}

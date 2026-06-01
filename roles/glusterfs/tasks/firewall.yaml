@@ -2,33 +2,31 @@
 # Configure firewall for GlusterFS
 - name: Check if UFW is available and enabled
   ansible.builtin.command: ufw status
-  register: ufw_check
+  register: glusterfs_ufw_check
   changed_when: false
   failed_when: false
 
 - name: Open GlusterFS ports with UFW
-  community.general.ufw:
-    rule: allow
-    port: "{{ item.split('/')[0] }}"
-    proto: "{{ item.split('/')[1] }}"
-    comment: "GlusterFS - {{ item }}"
+  ansible.builtin.command: ufw allow "{{ item }}" comment "GlusterFS"
   loop: "{{ glusterfs_firewall_ports }}"
   when:
-    - ufw_check.rc == 0
-    - "'Status: active' in ufw_check.stdout"
+    - glusterfs_ufw_check.rc == 0
+    - "'Status: active' in glusterfs_ufw_check.stdout"
+  changed_when: true
+  become: true
 
 - name: Check if firewalld is available and enabled
   ansible.builtin.systemd:
     name: firewalld
-  register: firewalld_check
+  register: glusterfs_firewalld_check
   failed_when: false
 
 - name: Check firewalld runtime status
   ansible.builtin.command: firewall-cmd --state
-  register: firewalld_runtime_check
+  register: glusterfs_firewalld_runtime_check
   changed_when: false
   failed_when: false
-  when: firewalld_check.status is defined and firewalld_check.status.ActiveState == "active"
+  when: glusterfs_firewalld_check.status is defined and glusterfs_firewalld_check.status.ActiveState == "active"
 
 - name: Open GlusterFS ports with firewalld
   ansible.posix.firewalld:
@@ -38,25 +36,29 @@
     immediate: true
   loop: "{{ glusterfs_firewall_ports }}"
   when:
-    - firewalld_check.status is defined
-    - firewalld_check.status.ActiveState == "active"
-    - firewalld_runtime_check.rc == 0
-    - "'running' in firewalld_runtime_check.stdout"
+    - glusterfs_firewalld_check.status is defined
+    - glusterfs_firewalld_check.status.ActiveState == "active"
+    - glusterfs_firewalld_runtime_check.rc == 0
+    - "'running' in glusterfs_firewalld_runtime_check.stdout"
 
 - name: Set firewall status facts
   ansible.builtin.set_fact:
-    ufw_active: "{{ ufw_check.rc == 0 and 'Status: active' in ufw_check.stdout }}"
-    firewalld_active: "{{ firewalld_check.status is defined and firewalld_check.status.ActiveState == 'active' and firewalld_runtime_check.rc == 0 and 'running' in firewalld_runtime_check.stdout }}"
+    glusterfs_ufw_active: "{{ glusterfs_ufw_check.rc == 0 and 'Status: active' in glusterfs_ufw_check.stdout }}"
+    glusterfs_firewalld_active: >-
+      {{ glusterfs_firewalld_check.status is defined and
+         glusterfs_firewalld_check.status.ActiveState == 'active' and
+         glusterfs_firewalld_runtime_check.rc == 0 and
+         'running' in glusterfs_firewalld_runtime_check.stdout }}
 
 - name: Display firewall configuration note
   ansible.builtin.debug:
     msg: |
       ⚠️  Firewall Configuration:
-      UFW Status: {{ 'Active' if ufw_active else 'Inactive/Not Available' }}
-      Firewalld Status: {{ 'Active' if firewalld_active else 'Inactive/Not Available' }}
+      UFW Status: {{ 'Active' if glusterfs_ufw_active else 'Inactive/Not Available' }}
+      Firewalld Status: {{ 'Active' if glusterfs_firewalld_active else 'Inactive/Not Available' }}
 
       If neither firewall is active, please manually open these ports:
       {% for port in glusterfs_firewall_ports %}
       - {{ port }}
       {% endfor %}
-  when: not ufw_active and not firewalld_active
+  when: not (glusterfs_ufw_active | bool) and not (glusterfs_firewalld_active | bool)

@@ -17,18 +17,12 @@ galaxy_info:
         - bullseye
         - bookworm
         - trixie
-    - name: RedHat
+    - name: EL
       versions:
-        - 8
-        - 9
-    - name: CentOS
-      versions:
-        - 8
-        - 9
+        - all
     - name: Rocky
       versions:
-        - 8
-        - 9
+        - all
 
   galaxy_tags:
     - highavailability
@@ -41,9 +35,3 @@ galaxy_info:
     - keepalived
 
 dependencies: []
-
-# Role dependencies can be specified here
-# For example:
-# dependencies:
-#   - { role: common, when: ansible_os_family == "RedHat" }
-#   - { role: firewall, when: keepalived_configure_firewall }

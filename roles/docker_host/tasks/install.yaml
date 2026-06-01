@@ -1,14 +1,4 @@
 ---
-- name: Check if Docker management is enabled
-  ansible.builtin.fail:
-    msg: "Docker management is disabled on this host"
-  when: not docker_host_enabled
-
-- name: Check if host should have Docker
-  ansible.builtin.fail:
-    msg: "This host is not configured for Docker setup"
-  when: not docker_host_enabled
-
 - name: Check for existing Docker installation
   ansible.builtin.command: docker --version
   register: docker_host_check
@@ -39,7 +29,7 @@
          docker_host_current_version_parsed != docker_host_target_version) }}
 
 - name: Check for running containers before installation
-  ansible.builtin.shell: docker ps -q
+  ansible.builtin.command: docker ps -q
   register: docker_host_running_containers
   ignore_errors: true
   changed_when: false
@@ -81,7 +71,7 @@
     - docker_host_should_install
 
 - name: Preview Docker installation script (dry run)
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: "{{ docker_host_install_script_path }} --dry-run"
   become: true
   register: docker_host_script_dry_run
@@ -98,10 +88,11 @@
     - docker_host_install_script_dry_run
 
 - name: Run Docker installation script
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: "{{ docker_host_install_script_path }}"
   become: true
   register: docker_host_script_install
+  changed_when: true
   when:
     - docker_host_install_method == "script"
     - docker_host_should_install

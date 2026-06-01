@@ -1,0 +1,30 @@
+---
+- name: Clone Mailcow repository
+  ansible.builtin.git:
+    repo: "{{ mailcow_repo }}"
+    dest: "{{ mailcow_install_dir }}"
+    version: "{{ mailcow_branch }}"
+    update: false
+
+- name: Set install dir permissions
+  ansible.builtin.file:
+    path: "{{ mailcow_install_dir }}"
+    mode: "02775"
+    group: "{{ docker_host_services_group | default('docker') }}"
+  become: true
+
+- name: Configure mailboxes and aliases
+  ansible.builtin.import_tasks: configure.yaml
+
+- name: Configure Postfix regex aliases
+  ansible.builtin.import_tasks: postfix.yaml
+
+- name: Next steps
+  ansible.builtin.debug:
+    msg:
+      - "Mailcow cloned to {{ mailcow_install_dir }}"
+      - "1. sudo git config --global --add safe.directory {{ mailcow_install_dir }}"
+      - "2. cd {{ mailcow_install_dir }} && sudo ./generate_config.sh"
+      - "3. Patch mailcow.conf: HTTP_BIND=127.0.0.1 HTTP_PORT=8080 HTTPS_BIND=127.0.0.1 HTTPS_PORT=8443 SKIP_LETS_ENCRYPT=y SKIP_HTTP_VERIFICATION=y"
+      - "4. sudo docker compose up -d --remove-orphans"
+  when: not (mailcow_install_dir ~ '/mailcow.conf') is file

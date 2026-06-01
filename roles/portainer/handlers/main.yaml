@@ -1,8 +1,10 @@
 ---
-- name: deploy portainer
+- name: Deploy Portainer stack
   ansible.builtin.command: docker stack deploy -c stack.yaml portainer
   args:
     chdir: "{{ portainer_install_dir }}"
-  run_once: true
-  delegate_to: "{{ docker_swarm_manager }}"
-  when: portainer_deployment_mode == "stack"
+  register: portainer_handler_result
+  changed_when: ((portainer_handler_result.stdout | default('')) | regex_search('(Updating|Creating)')) is not none
+  when:
+    - portainer_deployment_mode == "stack"
+    - inventory_hostname == docker_swarm_manager

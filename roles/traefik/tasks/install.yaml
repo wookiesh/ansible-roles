@@ -115,4 +115,4 @@
   when:
     - traefik_network_external
     - traefik_deployment_mode == "swarm"
-  run_once: true  # Only run on one manager in Swarm
+    - inventory_hostname == docker_swarm_manager

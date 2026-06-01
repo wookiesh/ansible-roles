@@ -1,0 +1,40 @@
+---
+mailcow_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/mailcow-dockerized"
+mailcow_repo: https://github.com/mailcow/mailcow-dockerized.git
+mailcow_branch: master
+
+mailcow_hostname: "mail.{{ ansible_domain | default('example.com') }}"
+mailcow_timezone: "{{ timezone | default('Europe/Brussels') }}"
+
+# Bind on loopback when behind a reverse proxy (Traefik)
+mailcow_http_port: "8080"
+mailcow_http_bind: "0.0.0.0"
+mailcow_https_port: "8443"
+mailcow_https_bind: "0.0.0.0"
+
+mailcow_skip_lets_encrypt: true
+mailcow_skip_http_verification: true
+
+# API configuration — set mailcow_api_key in vault
+mailcow_api_key: ""
+mailcow_api_url: "https://{{ mailcow_hostname }}/api/v1"
+
+# Mailboxes to provision
+# - local_part: alice
+#   domain: example.com
+#   name: Alice Example
+#   password: "{{ vault_mailcow_alice_password }}"
+#   quota: 0   # unlimited
+mailcow_mailboxes: []
+
+# Aliases to provision
+# Regular:   address: "alias@domain.tld"
+# Catch-all: address: "@domain.tld"
+# Regex:     address: "^pattern@domain\\.tld$", goto_regex: "1"
+# Multiple destinations: goto: "a@d.tld,b@d.tld"
+mailcow_aliases: []
+
+# Regex aliases via Postfix regexp map (bypasses Mailcow API limitation)
+# - pattern: "^prefix\\..+@domain\\.tld$"
+#   goto: "user@domain.tld"
+mailcow_regex_aliases: []

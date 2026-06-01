@@ -49,8 +49,12 @@ services:
     ports:
       - "{{ traefik_static_config.entryPoints.web.address | regex_replace(':(\\d+)', '\\1') }}:80"
       - "{{ traefik_static_config.entryPoints.websecure.address | regex_replace(':(\\d+)', '\\1') }}:443"
+{% if traefik_static_config.entryPoints.mqttsecure is defined %}
       - "{{ traefik_static_config.entryPoints.mqttsecure.address | regex_replace(':(\\d+)', '\\1') }}:8883"
+{% endif %}
+{% if traefik_static_config.entryPoints.metrics is defined %}
       - "{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}:8899"
+{% endif %}
 {% endif %}
     networks:
       - {{ traefik_network_name }}

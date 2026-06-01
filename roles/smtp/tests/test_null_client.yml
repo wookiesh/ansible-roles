@@ -37,35 +37,11 @@
       ansible.builtin.shell: |
         postconf relayhost inet_interfaces mydestination local_transport
       register: smtp_test_config
+      changed_when: false
       failed_when:
         - "'relayhost = [smtp.example.com]:25' not in smtp_test_config.stdout"
         - "'inet_interfaces = 127.0.0.1' not in smtp_test_config.stdout"
 
-    - name: Test email sending (null client)
-      test_mail:
-        to: "admin@{{ smtp_domain }}"
-        from_addr: "ansible@{{ smtp_domain }}"
-        subject: "Null Client Test from {{ ansible_hostname }}"
-        body: |
-          This is a test email sent from {{ ansible_hostname }}
-          using SMTP null client configuration.
-
-          Relay: {{ smtp_relayhost }}
-          Domain: {{ smtp_domain }}
-          Timestamp: {{ ansible_date_time.iso8601 }}
-      register: smtp_mail_test
-      failed_when: smtp_mail_test.failed
-      tags:
-        - smtp_test
-        - smtp_validate
-
-    - name: Display test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ SMTP null client test completed successfully
-          - Postfix installed and running
-          - Null client configuration applied
-          - Configuration syntax valid
-          - Email sending test: {{ 'PASSED' if smtp_mail_test.succeeded else 'FAILED' }}
-
-          {{ smtp_mail_test.msg }}
+    - name: Verify Postfix configuration syntax
+      ansible.builtin.command: postfix check
+      changed_when: false

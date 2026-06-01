@@ -1,75 +1,40 @@
 ---
-- name: Test Docker role
+- name: Test docker_host role
   hosts: localhost
   become: true
   gather_facts: true
   vars:
-    # Test-specific variables
-    docker_host_enabled: true
     docker_host_install_method: "script"
     docker_host_version: "latest"
     docker_host_auto_update: false
     docker_host_skip_update_if_running: true
-    
-    # Traefik test variables (disabled for basic testing)
-    traefik_enabled: false
-    
-    # Test user
     docker_host_user: "{{ ansible_user_id }}"
     docker_host_add_user_to_group: true
-    
-  pre_tasks:
-    - name: Show test environment
-      ansible.builtin.debug:
-        msg: |
-          Testing Docker role on:
-          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
-          - Python: {{ ansible_python_version }}
-          - User: {{ ansible_user_id }}
-          - Docker method: {{ docker_host_install_method }}
 
   tasks:
-    - name: Include Docker role
+    - name: Include docker_host role
       ansible.builtin.include_role:
-        name: docker
+        name: docker_host
 
   post_tasks:
-    - name: Verify Docker installation
+    - name: Verify Docker is installed
       ansible.builtin.command: docker --version
-      register: docker_test_version
+      register: docker_version
       changed_when: false
-      failed_when: docker_test_version.rc != 0
+      failed_when: docker_version.rc != 0
 
-    - name: Verify Docker service
+    - name: Verify Docker service is active
       ansible.builtin.systemd:
         name: docker
-      register: docker_service_check
-      failed_when: docker_service_check.status.ActiveState != "active"
+      register: docker_service
+      failed_when: docker_service.status.ActiveState != "active"
 
-    - name: Verify user in docker group
+    - name: Verify user is in docker group
       ansible.builtin.command: groups "{{ ansible_user_id }}"
       register: user_groups
       changed_when: false
       failed_when: "'docker' not in user_groups.stdout"
 
-    - name: Test Docker functionality
+    - name: Verify Docker works
       ansible.builtin.command: docker run --rm hello-world
-      register: docker_hello_test
       changed_when: false
-      failed_when: docker_hello_test.rc != 0
-
-    - name: Display test results
-      ansible.builtin.debug:
-        msg: |
-          ✅ Docker role test completed successfully!
-          
-          Installation verification:
-          - Docker version: {{ docker_test_version.stdout }}
-          - Service status: {{ docker_service_check.status.ActiveState }}
-          - User in docker group: {{ 'docker' in user_groups.stdout }}
-          - Hello world test: {{ 'PASSED' if docker_hello_test.rc == 0 else 'FAILED' }}
-          
-          Test environment:
-          - Host: {{ inventory_hostname }}
-          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
-          - Python: {{ ansible_python_version }}

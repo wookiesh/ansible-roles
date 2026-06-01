@@ -17,19 +17,12 @@ galaxy_info:
         - bullseye
         - bookworm
         - trixie
-    - name: RedHat
+    - name: EL
       versions:
-        - "8"
-        - "9"
-    - name: CentOS
-      versions:
-        - "8"
-        - "9"
+        - all
     - name: Fedora
       versions:
-        - "38"
-        - "39"
-        - "40"
+        - all
     - name: ArchLinux
       versions:
         - all
@@ -41,7 +34,6 @@ galaxy_info:
     - security
     - wireguard
     - mesh
-    - zerotier
     - system
 
 dependencies: []

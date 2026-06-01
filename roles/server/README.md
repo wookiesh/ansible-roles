@@ -26,6 +26,9 @@
 
 
 
+### Journald
+- `server_journald_max_use`: Max disk space for journal logs (default: `200M`)
+
 ### Performance Tuning
 - `server_performance_tuning_enabled`: Enable performance tuning (default: false)
 - `server_performance_swappiness`: Swappiness value (default: 10)
@@ -64,6 +67,8 @@ servers:
 - [x] Unattended upgrades
 - [x] Apticron notifications
 - [x] Performance tuning (swappiness)
+- [x] APT periodic cleanup
+- [x] Journald size limit
 - [ ] MOTD information
 - [ ] Log rotation configuration
 - [ ] Time synchronization (chrony)

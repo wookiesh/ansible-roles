@@ -1,8 +1,10 @@
 ---
-- name: deploy uptimekuma
+- name: Deploy Uptime Kuma stack
   ansible.builtin.command: docker stack deploy -c stack.yaml uptimekuma
   args:
     chdir: "{{ uptimekuma_install_dir }}"
-  run_once: true
-  delegate_to: "{{ docker_swarm_manager }}"
-  when: uptimekuma_deployment_mode == "stack"
+  register: uptimekuma_handler_result
+  changed_when: ((uptimekuma_handler_result.stdout | default('')) | regex_search('(Updating|Creating)')) is not none
+  when:
+    - uptimekuma_deployment_mode == "stack"
+    - inventory_hostname == docker_swarm_manager

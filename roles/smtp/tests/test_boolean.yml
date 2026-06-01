@@ -15,7 +15,10 @@
 
     - name: Check generated boolean values in main.cf
       ansible.builtin.shell: |
+        set -o pipefail
         grep -E "(smtp_use_tls|smtp_sasl_auth_enable|disable_vrfy_command|smtpd_helo_required)" /etc/postfix/main.cf
+      args:
+        executable: /bin/bash
       register: boolean_check
       changed_when: false
 
