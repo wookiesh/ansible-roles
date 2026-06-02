@@ -29,6 +29,9 @@ outline_smtp_port: 25
 outline_smtp_secure: "false"
 outline_smtp_from_email: "Outline <outline@{{ base_domain }}>"
 
+# Access restriction — comma-separated domains (empty = allow all tenant users)
+outline_allowed_domains: ""
+
 # OIDC
 outline_oidc_display_name: "authentik"
 outline_oidc_username_claim: "preferred_username"
