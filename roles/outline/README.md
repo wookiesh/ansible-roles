@@ -54,6 +54,12 @@ Deploys [Outline](https://www.getoutline.com/) wiki with Postgres and Redis via 
 | `outline_smtp_secure` | `false` | TLS for SMTP |
 | `outline_smtp_from_email` | `Outline <outline@{{ base_domain }}>` | From address |
 
+### Access control
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `outline_allowed_domains` | `""` | Comma-separated email domains allowed to sign in (empty = allow all) |
+
 ### OIDC
 
 | Variable | Default | Description |
