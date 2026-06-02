@@ -21,7 +21,7 @@ services:
       - internal
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/_health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/_health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -31,7 +31,12 @@ services:
       - wud.tag.exclude=^(.*?)(rc|beta|alpha|dev|pre|fix|nightly|base|32bit).*$
       - traefik.enable=true
       - traefik.http.routers.outline.rule=Host(`{{ outline_fqdn }}`)
+      - traefik.http.routers.outline.entrypoints=websecure
+{% if traefik_certresolver | default('') %}
       - traefik.http.routers.outline.tls.certresolver={{ traefik_certresolver }}
+{% else %}
+      - traefik.http.routers.outline.tls=true
+{% endif %}
       - traefik.http.services.outline.loadbalancer.server.port=3000
 
   redis:
