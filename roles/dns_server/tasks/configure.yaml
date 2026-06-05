@@ -91,7 +91,7 @@
       failed_when: _settings_result.json.status == 'error'
       changed_when: _settings_result.json.status == 'ok'
       when: >-
-        (_current_settings.json.response.forwarders | default([]) | join(','))
+        (_current_settings.json.response.forwarders | default([], true) | join(','))
           != (dns_server_fallback_dns | join(','))
         or (_current_settings.json.response.forwarderProtocol | default('Udp'))
           != dns_server_fallback_dns_protocol

@@ -34,12 +34,18 @@ services:
       - traefik.http.routers.technitium.rule=Host(`{{ dns_server_ui_domain }}`)
       - traefik.http.routers.technitium.entrypoints=websecure
       - traefik.http.routers.technitium.tls=true
+{% if traefik_static_config.certificatesResolvers is defined %}
+      - traefik.http.routers.technitium.tls.certresolver={{ traefik_static_config.certificatesResolvers | list | first }}
+{% endif %}
       - traefik.http.routers.technitium.middlewares=internal-only@file
       - traefik.http.services.technitium.loadbalancer.server.port={{ dns_server_ui_port }}
 {% if dns_server_vip_domain %}
       - traefik.http.routers.technitium-vip.rule=Host(`{{ dns_server_vip_domain }}`)
       - traefik.http.routers.technitium-vip.entrypoints=websecure
       - traefik.http.routers.technitium-vip.tls=true
+{% if traefik_static_config.certificatesResolvers is defined %}
+      - traefik.http.routers.technitium-vip.tls.certresolver={{ traefik_static_config.certificatesResolvers | list | first }}
+{% endif %}
       - traefik.http.routers.technitium-vip.middlewares=internal-only@file
       - traefik.http.routers.technitium-vip.service=technitium
 {% endif %}

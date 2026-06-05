@@ -32,9 +32,11 @@
   notify: Restart systemd-resolved
 
 - name: Create Traefik network
-  community.docker.docker_network:
-    name: "{{ dns_server_network }}"
-    driver: bridge
+  ansible.builtin.command:
+    cmd: docker network create {{ dns_server_network }}
+  register: dns_server__network_create
+  changed_when: dns_server__network_create.rc == 0
+  failed_when: dns_server__network_create.rc != 0 and 'already exists' not in dns_server__network_create.stderr
 
 - name: Deploy Technitium compose file
   ansible.builtin.template:

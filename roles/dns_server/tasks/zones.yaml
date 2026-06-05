@@ -52,6 +52,11 @@
         - dns_server__zone_result.json.status == 'error'
         - "'Zone already exists' not in (dns_server__zone_result.json.errorMessage | default(''))"
       changed_when: dns_server__zone_result.json.status == 'ok'
+      retries: "{{ 6 if not (dns_server__is_primary | bool) else 1 }}"
+      delay: 10
+      until: >-
+        dns_server__zone_result.json.status == 'ok'
+        or 'Zone already exists' in (dns_server__zone_result.json.errorMessage | default(''))
       loop: "{{ dns_server_zones }}"
       loop_control:
         label: "{{ item.name }} ({{ item.primary_type if dns_server__is_primary | bool else item.secondary_type }})"

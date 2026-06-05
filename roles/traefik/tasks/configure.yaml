@@ -57,7 +57,6 @@
 - name: Deploy Traefik stack (Compose mode)
   ansible.builtin.command:
     cmd: "docker compose -f {{ traefik_compose_file }} up -d"
-  become: true
   register: traefik_deploy
   changed_when: "'is up-to-date' not in traefik_deploy.stderr"
   when: traefik_deployment_mode == "compose"
@@ -109,7 +108,6 @@
 - name: Verify Traefik containers are running (Compose mode)
   ansible.builtin.command:
     cmd: "docker compose -f {{ traefik_compose_file }} ps"
-  become: true
   register: traefik_containers
   changed_when: false
   when: traefik_deployment_mode == "compose"
@@ -117,7 +115,6 @@
 - name: Verify Traefik services are running (Swarm mode)
   ansible.builtin.command:
     cmd: "docker stack services traefik"
-  become: true
   register: traefik_services
   changed_when: false
   when:
@@ -133,7 +130,9 @@
       - Mode: {{ traefik_deployment_mode }}
       - Dashboard: https://{{ traefik_domain }}
       - Whoami test: https://{{ traefik_whoami_domain }}
-      {% if traefik_static_config.entryPoints.metrics is defined %}- Metrics: http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}{% endif %}
+      {% if traefik_static_config.entryPoints.metrics is defined %}
+      - Metrics: http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}
+      {% endif %}
       - Network: {{ traefik_network_name }} ({{ traefik_network_driver }})
 
       {% if traefik_deployment_mode == "compose" %}
