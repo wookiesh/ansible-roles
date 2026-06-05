@@ -7,7 +7,7 @@ alloy_deployment_mode: "{{ 'swarm' if docker_host_swarm_enabled | default(false)
 
 # Deployment paths
 alloy_docker_services_root: "{{ docker_host_services_root | default('/opt/docker') }}"
-alloy_install_dir: "{{ alloy_docker_services_root }}/stacks/alloy"
+alloy_install_dir: "{{ alloy_docker_services_root }}/alloy"
 alloy_config_dir: "{{ alloy_install_dir }}/config"
 alloy_secrets_dir: "{{ alloy_install_dir }}/secrets"
 alloy_compose_file: "{{ alloy_install_dir }}/compose.yaml"
