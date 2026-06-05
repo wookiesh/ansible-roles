@@ -1,0 +1,22 @@
+secrets:
+  grafana_cloud_api_key:
+    file: {{ alloy_secrets_dir }}/grafana_cloud_api_key
+
+services:
+  alloy:
+    image: grafana/alloy:{{ alloy_version }}
+    hostname: {{ inventory_hostname }}
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --stability.level=generally-available
+    volumes:
+      - {{ alloy_config_dir }}/config.alloy:/etc/alloy/config.alloy:ro
+{% if alloy_traefik_logs_enabled and alloy_traefik_log_path %}
+      - {{ alloy_traefik_log_path }}:{{ alloy_traefik_log_path }}:ro
+{% endif %}
+    secrets:
+      - grafana_cloud_api_key
+    network_mode: host

@@ -29,6 +29,14 @@ Tasks that don't need root (docker socket calls, URI, delegate_to: localhost, ge
 Directories under `/opt/docker/` follow the pattern `owner: root, group: docker, mode: 2775`.
 This is consistent across all roles (alloy, traefik, docker_stacks, dns_server).
 
+### Docker deployment modes
+All roles that deploy a Docker workload must support both **compose** and **swarm** modes.
+Use a `<role>_deployment_mode` variable defaulting to `"{{ 'swarm' if docker_host_swarm_enabled | default(false) else 'compose' }}"`.
+- Compose tasks use `docker compose -f ... up -d` (no SDK, no `become`).
+- Swarm tasks use `community.docker.docker_stack` and run on the swarm manager.
+- Secrets: compose mode writes a file under `<role>_secrets_dir/`; swarm mode uses `community.docker.docker_secret`.
+- Handlers and verify tasks must branch on the mode.
+
 ### No `xxx_enabled` flags
 New roles must not have an enabled/disabled flag as a role-level gate.
 The play's `hosts:` field is the gate — the role runs unconditionally when assigned.

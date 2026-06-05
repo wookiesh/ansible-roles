@@ -10,6 +10,17 @@
   become: true
   notify: Restart Alloy
 
+- name: Create Alloy Compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ alloy_compose_file }}"
+    mode: "0664"
+    owner: root
+    group: "{{ docker_host_services_group }}"
+    backup: true
+  become: true
+  when: alloy_deployment_mode == "compose"
+
 - name: Create Alloy Swarm stack file
   ansible.builtin.template:
     src: swarm.yaml.j2
@@ -19,12 +30,21 @@
     group: "{{ docker_host_services_group }}"
     backup: true
   become: true
+  when: alloy_deployment_mode == "swarm"
+
+- name: Deploy Alloy stack (Compose mode)
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ alloy_compose_file }} up -d"
+  register: alloy_deploy
+  changed_when: "'is up-to-date' not in alloy_deploy.stderr"
+  when: alloy_deployment_mode == "compose"
 
 - name: Install pip for Python3
   ansible.builtin.package:
     name: python3-pip
     state: present
   become: true
+  when: alloy_deployment_mode == "swarm"
 
 - name: Install jsondiff dependency for docker_stack module
   ansible.builtin.pip:
@@ -32,6 +52,7 @@
     state: present
     extra_args: --break-system-packages
   become: true
+  when: alloy_deployment_mode == "swarm"
 
 - name: Deploy Alloy stack (Swarm mode)
   community.docker.docker_stack:
@@ -41,8 +62,16 @@
     state: present
   run_once: true
   delegate_to: "{{ docker_swarm_manager | default(inventory_hostname) }}"
+  when: alloy_deployment_mode == "swarm"
 
-- name: Verify Alloy services are running
+- name: Verify Alloy containers are running (Compose mode)
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ alloy_compose_file }} ps"
+  register: alloy_containers
+  changed_when: false
+  when: alloy_deployment_mode == "compose"
+
+- name: Verify Alloy services are running (Swarm mode)
   ansible.builtin.command:
     cmd: "docker stack services alloy"
   become: true
@@ -50,16 +79,13 @@
   changed_when: false
   run_once: true
   delegate_to: "{{ docker_swarm_manager | default(inventory_hostname) }}"
+  when: alloy_deployment_mode == "swarm"
 
 - name: Display Alloy status
   ansible.builtin.debug:
     msg: |
       Alloy deployment completed!
-
-      Services:
-      {{ alloy_services.stdout }}
-
+      Mode: {{ alloy_deployment_mode }}
       Loki enabled: {{ alloy_loki_enabled }}
       Metrics enabled: {{ alloy_metrics_enabled }}
       Traefik logs: {{ alloy_traefik_logs_enabled and alloy_traefik_log_path | length > 0 }}
-  run_once: true

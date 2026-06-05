@@ -2,10 +2,15 @@
 # Grafana Alloy observability agent
 alloy_version: "v1.7.4"
 
+# Deployment mode: compose (default) or swarm
+alloy_deployment_mode: "{{ 'swarm' if docker_host_swarm_enabled | default(false) else 'compose' }}"
+
 # Deployment paths
 alloy_docker_services_root: "{{ docker_host_services_root | default('/opt/docker') }}"
 alloy_install_dir: "{{ alloy_docker_services_root }}/stacks/alloy"
 alloy_config_dir: "{{ alloy_install_dir }}/config"
+alloy_secrets_dir: "{{ alloy_install_dir }}/secrets"
+alloy_compose_file: "{{ alloy_install_dir }}/compose.yaml"
 alloy_swarm_file: "{{ alloy_install_dir }}/swarm.yaml"
 
 # Swarm — global mode, managers only by default

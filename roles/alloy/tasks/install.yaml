@@ -16,3 +16,13 @@
     owner: root
     group: "{{ docker_host_services_group }}"
   become: true
+
+- name: Create Alloy secrets directory
+  ansible.builtin.file:
+    path: "{{ alloy_secrets_dir }}"
+    state: directory
+    mode: "0750"
+    owner: root
+    group: "{{ docker_host_services_group }}"
+  become: true
+  when: alloy_deployment_mode == "compose"
