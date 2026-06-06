@@ -34,7 +34,7 @@ This role deploys and configures Traefik as a reverse proxy for Docker container
 ## Role Variables
 
 ### Main Configuration
-- `traefik_version`: Traefik version to deploy (default: "v3.6.2")
+- `traefik_version`: Traefik version to deploy (default: "v3.7.1")
 - `traefik_domain`: Main domain for Traefik dashboard (default: "{{ vault_traefik_domain }}")
 - `traefik_deployment_mode`: Deployment mode - "compose" or "swarm" (auto-detected based on Docker Swarm)
 
@@ -105,12 +105,6 @@ traefik_dynamic_config:
 - `traefik_port_mode`: Port binding mode - "host" or "ingress" (default: "ingress")
   - "host": Direct port binding (80:80, 443:443, etc.)
   - "ingress": Dynamic port binding (Traefik-managed ports)
-
-### Ports Configuration
-- `traefik_http_port`: HTTP port (default: 80)
-- `traefik_https_port`: HTTPS port (default: 443)
-- `traefik_mqtts_port`: MQTT over TLS port (default: 8883)
-- `traefik_metrics_port`: Metrics port (default: 8899)
 
 ### Features
 - `traefik_whoami_enabled`: Enable whoami test service (default: true)
@@ -257,32 +251,22 @@ swarm_managers:
 
 ### Compose Mode
 ```
-/opt/docker/
-├── traefik/
-│   ├── compose.yaml              # Docker Compose configuration
-│   └── traefik/
-│       ├── static.yaml           # Static Traefik configuration
-│       └── dynamic.yaml          # Dynamic configuration (routers, services)
-├── shared/
-│   ├── networks/
-│   └── volumes/
-└── services/
-    └── [your applications]
+/opt/docker/traefik/
+├── compose.yaml              # Docker Compose file
+└── config/
+    ├── static.yaml           # Static Traefik configuration
+    └── dynamic/              # Dynamic configuration directory (file provider)
+        └── dynamic.yaml      # Routers, middlewares, services
 ```
 
 ### Swarm Mode
 ```
-/opt/docker/
-├── traefik/
-│   ├── swarm.yaml                # Docker Stack configuration
-│   └── traefik/
-│       ├── static.yaml           # Static Traefik configuration
-│       └── dynamic.yaml          # Dynamic configuration (routers, services)
-├── shared/
-│   ├── networks/                 # Overlay networks
-│   └── volumes/
-└── services/
-    └── [your applications]
+/opt/docker/traefik/
+├── stack.yaml                # Docker Swarm stack file
+└── config/
+    ├── static.yaml           # Static Traefik configuration
+    └── dynamic/              # Dynamic configuration directory (file provider)
+        └── dynamic.yaml
 ```
 
 ## Usage Examples
@@ -353,39 +337,6 @@ docker stack services myapp
 
 # Check service logs
 docker service logs myapp_myapp
-```
-
-### Custom Middlewares
-
-```yaml
-traefik_middlewares:
-  auth:
-    basicAuth:
-      users:
-        - "admin:$apr1$6a9t...j2W"  # htpasswd generated
-  compression:
-    compress: {}
-  security:
-    headers:
-      frameDeny: true
-      browserXssFilter: true
-```
-
-### Custom Services and Routers
-
-```yaml
-traefik_services:
-  external_api:
-    loadBalancer:
-      servers:
-        - url: "https://api.example.com"
-
-traefik_routers:
-  api_proxy:
-    rule: "Host(`api.example.com`)"
-    service: external_api
-    tls:
-      certResolver: myresolver
 ```
 
 ## Security Notes

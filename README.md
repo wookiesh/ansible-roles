@@ -39,6 +39,7 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 | [`portainer`](roles/portainer/) | Portainer CE management UI — compose or swarm stack, auto-detected |
 | [`beszel`](roles/beszel/) | Beszel monitoring hub — compose or swarm stack, auto-detected |
 | [`uptimekuma`](roles/uptimekuma/) | Uptime Kuma status page — compose or swarm stack, auto-detected |
+| [`dozzle`](roles/dozzle/) | Dozzle log viewer — central + remote agent mode, Traefik-integrated |
 | [`dns_server`](roles/dns_server/) | Technitium DNS server — compose mode |
 | [`docker_stacks`](roles/docker_stacks/) | ~~DEPRECATED~~ — replaced by per-app roles above |
 
