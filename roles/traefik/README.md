@@ -68,24 +68,40 @@ traefik_static_config:
 ```
 
 #### Dynamic Configuration  
-The dynamic configuration is controlled by `traefik_dynamic_config` variable and includes:
-- Routers and services
-- Middlewares
-- Custom service definitions
+The dynamic configuration is controlled by `traefik_dynamic_config` and written to `config/dynamic/dynamic.yaml` inside the container.
 
-Example:
+Middlewares, custom routers, and external services all go here:
+
 ```yaml
 traefik_dynamic_config:
   http:
+    middlewares:
+      security-headers:
+        headers:
+          stsSeconds: 63072000
+          frameDeny: true
+      rate-limit:
+        rateLimit:
+          average: 100
+          burst: 50
+      internal-only:
+        ipAllowList:
+          sourceRange:
+            - "10.0.0.0/8"
+            - "192.168.0.0/16"
     routers:
-      myrouter:
-        rule: "Host(`example.com`)"
-        service: myservice
+      external-service:
+        rule: "Host(`app.example.com`)"
+        service: external-backend
+        tls:
+          certResolver: myresolver
+        middlewares:
+          - security-headers
     services:
-      myservice:
+      external-backend:
         loadBalancer:
           servers:
-            - url: "http://backend:80"
+            - url: "http://192.168.1.50:8080"
 ```
 
 ### Docker Integration
