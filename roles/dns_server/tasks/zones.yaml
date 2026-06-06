@@ -114,13 +114,12 @@
               'zone': dns_server__zone.name,
               'domain': (dns_server__record.name ~ '.' ~ dns_server__zone.name) if dns_server__record.name != '@' else dns_server__zone.name,
               'type': dns_server__record.type,
-              'ttl': dns_server__record.ttl | default(3600)
+              'ttl': dns_server__record.ttl | default(3600),
+              'overwrite': 'true'
             } | combine(dns_server__type_extra[dns_server__record.type])
           }}
       register: dns_server__record_result
-      failed_when:
-        - dns_server__record_result.json.status == 'error'
-        - "'already exists' not in (dns_server__record_result.json.errorMessage | default('') | lower)"
+      failed_when: dns_server__record_result.json.status == 'error'
       changed_when: dns_server__record_result.json.status == 'ok'
       when: dns_server__is_primary | bool
       loop: "{{ dns_server_zones | subelements('records', skip_missing=True) }}"
@@ -159,11 +158,10 @@
           ttl: 3600
           ptr: "true"
           createPtrZone: "true"
+          overwrite: "true"
         return_content: true
       register: dns_server__auto_record_result
-      failed_when:
-        - dns_server__auto_record_result.json.status == 'error'
-        - "'already exists' not in (dns_server__auto_record_result.json.errorMessage | default('') | lower)"
+      failed_when: dns_server__auto_record_result.json.status == 'error'
       changed_when: dns_server__auto_record_result.json.status == 'ok'
       when: dns_server__is_primary | bool
       loop: "{{ dns_server__auto_a_records | default([]) }}"
