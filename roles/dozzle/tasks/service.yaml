@@ -1,0 +1,18 @@
+---
+- name: Deploy Dozzle (swarm stack)
+  ansible.builtin.command: docker stack deploy -c stack.yaml dozzle
+  args:
+    chdir: "{{ dozzle_install_dir }}"
+  register: dozzle_stack_result
+  changed_when: ((dozzle_stack_result.stdout | default('')) | regex_search('(Updating|Creating)')) is not none
+  when:
+    - dozzle_deployment_mode == "stack"
+    - inventory_hostname == docker_swarm_manager
+
+- name: Deploy Dozzle (compose)
+  community.docker.docker_compose_v2:
+    project_src: "{{ dozzle_install_dir }}"
+    state: present
+  when:
+    - dozzle_deployment_mode == "compose"
+    - not ansible_check_mode

@@ -1,0 +1,18 @@
+---
+dozzle_image: "amir20/dozzle:latest"
+dozzle_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/dozzle"
+dozzle_deployment_mode: "{{ 'stack' if docker_host_swarm_enabled | default(false) else 'compose' }}"
+dozzle_domain: "logs.{{ server_domain }}"
+dozzle_network: "{{ traefik_network_name | default('traefik_public') }}"
+
+# Set to true on hosts that run as remote agents (no Traefik, exposes port 7007)
+dozzle_agent_mode: false
+
+# Central viewer: list of remote agents to connect to
+# Each entry: { name: "hostname", addr: "ip:7007" }
+dozzle_agents: []
+
+# Agent bind IP — restrict which interface port 7007 is exposed on.
+# Leave empty to bind on all interfaces (0.0.0.0); rely on host firewall for production.
+# Set to a LAN/VPN IP per host when fine-grained control is needed.
+dozzle_agent_bind_ip: ""

@@ -1,0 +1,6 @@
+---
+- name: Import Dozzle installation tasks
+  ansible.builtin.import_tasks: install.yaml
+
+- name: Import Dozzle service tasks
+  ansible.builtin.import_tasks: service.yaml

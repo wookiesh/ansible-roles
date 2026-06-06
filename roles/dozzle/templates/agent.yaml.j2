@@ -1,0 +1,12 @@
+services:
+  dozzle-agent:
+    image: {{ dozzle_image }}
+    container_name: dozzle-agent
+    command: agent
+    restart: unless-stopped
+    environment:
+      DOZZLE_HOSTNAME: "{{ inventory_hostname }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "{{ dozzle_agent_bind_ip ~ ':' if dozzle_agent_bind_ip else '' }}7007:7007"

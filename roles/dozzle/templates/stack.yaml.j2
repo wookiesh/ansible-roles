@@ -1,0 +1,25 @@
+networks:
+  {{ dozzle_network }}:
+    external: true
+
+services:
+  dozzle:
+    image: {{ dozzle_image }}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - {{ dozzle_network }}
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.dozzle.rule=Host(`{{ dozzle_domain }}`)"
+        - "traefik.http.routers.dozzle.entrypoints=websecure"
+        - "traefik.http.routers.dozzle.middlewares=internal-only@file"
+        - "traefik.http.services.dozzle.loadbalancer.server.port=8080"

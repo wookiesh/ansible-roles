@@ -1,5 +1,11 @@
 # TODO
 
+## Known limitations
+
+- **`dozzle` agent auth** — agents expose port 7007 with no authentication. `dozzle_agent_bind_ip`
+  limits the bind interface but relies on external firewall for production isolation.
+  Long-term fix: mTLS between agent and central (Dozzle supports `--ssl-cert-file` / `--ssl-key-file`).
+
 ## New roles to create
 
 ### System-level services (dedicated roles — config beyond a compose file)
@@ -47,7 +53,7 @@ Currently running on `vm-docker`, to be templated as `stacks/` in each consumer 
 | `reitti`          | Custom app                         |
 | `searxng`         | Metasearch engine                  |
 | `servarrs`        | *arr stack (Sonarr/Radarr/etc.)    |
-| `stirlingpdf`     | PDF tools                          |
+| `bentopdf`        | PDF tools                          |
 | `uptime-kuma`     | Uptime monitoring                  |
 | `vaultwarden`     | Password manager                   |
 | `whatsupdocker`   | Docker image update watcher        |

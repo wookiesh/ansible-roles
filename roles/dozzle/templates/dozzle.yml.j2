@@ -1,0 +1,6 @@
+remote:
+  agent:
+{% for agent in dozzle_agents %}
+    - addr: {{ agent.addr }}
+      name: "{{ agent.name }}"
+{% endfor %}

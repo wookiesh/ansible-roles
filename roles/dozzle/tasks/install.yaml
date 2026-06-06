@@ -1,0 +1,20 @@
+---
+- name: Create Dozzle install directory
+  ansible.builtin.file:
+    path: "{{ dozzle_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+
+- name: Deploy Dozzle compose file
+  ansible.builtin.template:
+    src: "{{ 'agent' if dozzle_agent_mode else 'compose' }}.yaml.j2"
+    dest: "{{ dozzle_install_dir }}/{{ 'stack.yaml' if dozzle_deployment_mode == 'stack' else 'compose.yaml' }}"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  notify: Deploy Dozzle stack

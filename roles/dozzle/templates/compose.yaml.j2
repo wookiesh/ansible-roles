@@ -1,0 +1,28 @@
+networks:
+  {{ dozzle_network }}:
+    external: true
+
+services:
+  dozzle:
+    image: {{ dozzle_image }}
+    container_name: dozzle
+    restart: unless-stopped
+{% if dozzle_agents | length > 0 %}
+    environment:
+      DOZZLE_REMOTE_AGENT: "{{ dozzle_agents | map(attribute='addr') | join(',') }}"
+{% endif %}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - {{ dozzle_network }}
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 3s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dozzle.rule=Host(`{{ dozzle_domain }}`)
+      - traefik.http.routers.dozzle.tls=true
+      - traefik.http.services.dozzle.loadbalancer.server.port=8080

@@ -1,0 +1,10 @@
+---
+- name: Deploy Dozzle stack
+  ansible.builtin.command: docker stack deploy -c stack.yaml dozzle
+  args:
+    chdir: "{{ dozzle_install_dir }}"
+  register: dozzle_handler_result
+  changed_when: ((dozzle_handler_result.stdout | default('')) | regex_search('(Updating|Creating)')) is not none
+  when:
+    - dozzle_deployment_mode == "stack"
+    - inventory_hostname == docker_swarm_manager
