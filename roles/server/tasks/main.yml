@@ -105,7 +105,7 @@
           # Created by Ansible - Server Role
           EMAIL="{{ server_apticron_email }}"
           SYSTEM="{{ server_hostname_fqdn }}"
-          NOTIFY_HOLD="false"
+          NOTIFY_HOLD="{{ '1' if server_apticron_notify_hold else '0' }}"
         owner: root
         group: root
         mode: "0644"

@@ -11,6 +11,7 @@ server_auto_update_config_file: "/etc/apt/apt.conf.d/20auto-upgrades"
 # Apticron Notifications
 server_apticron_enabled: false
 server_apticron_email: root
+server_apticron_notify_hold: true
 
 # Journald
 server_journald_max_use: "200M"
