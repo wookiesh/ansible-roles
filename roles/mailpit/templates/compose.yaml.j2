@@ -1,0 +1,35 @@
+networks:
+  {{ mailpit_network }}:
+    external: true
+
+volumes:
+  data:
+
+services:
+  mailpit:
+    image: {{ mailpit_image }}
+    container_name: mailpit
+    restart: unless-stopped
+    volumes:
+      - data:/data
+    ports:
+      - "{{ mailpit_smtp_port }}:1025"
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "{{ mailpit_max_messages }}"
+      MP_SMTP_AUTH_ACCEPT_ANY: "{{ '1' if mailpit_smtp_auth_accept_any else '0' }}"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "{{ '1' if mailpit_smtp_auth_allow_insecure else '0' }}"
+    networks:
+      - {{ mailpit_network }}
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mailpit.rule=Host(`{{ mailpit_domain }}`)
+      - traefik.http.routers.mailpit.tls.certresolver=myresolver
+      - traefik.http.services.mailpit.loadbalancer.server.port=8025

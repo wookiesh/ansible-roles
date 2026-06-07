@@ -1,0 +1,7 @@
+---
+- name: Deploy Mailpit compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ mailpit_install_dir }}"
+    state: present
+  become: true
+  when: not ansible_check_mode

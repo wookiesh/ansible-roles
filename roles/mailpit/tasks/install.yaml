@@ -1,0 +1,19 @@
+---
+- name: Create Mailpit install directory
+  ansible.builtin.file:
+    path: "{{ mailpit_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Deploy Mailpit compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ mailpit_install_dir }}/compose.yaml"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  notify: Deploy Mailpit compose

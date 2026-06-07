@@ -1,0 +1,13 @@
+---
+- name: Remove Mailpit (compose)
+  community.docker.docker_compose_v2:
+    project_src: "{{ mailpit_install_dir }}"
+    state: absent
+    remove_volumes: true
+  become: true
+
+- name: Remove Mailpit install directory
+  ansible.builtin.file:
+    path: "{{ mailpit_install_dir }}"
+    state: absent
+  become: true

@@ -1,0 +1,13 @@
+---
+mailpit_image: "axllent/mailpit:v1.30.1"
+mailpit_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/mailpit"
+mailpit_domain: "mailpit.{{ server_domain }}"
+mailpit_network: "{{ traefik_network_name | default('traefik_public') }}"
+
+# SMTP port exposed on the host
+mailpit_smtp_port: 1025
+
+# Mailpit runtime settings
+mailpit_max_messages: 5000
+mailpit_smtp_auth_accept_any: true
+mailpit_smtp_auth_allow_insecure: true
