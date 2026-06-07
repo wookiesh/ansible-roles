@@ -1,5 +1,20 @@
 # TODO
 
+## Uninstall pattern
+
+Each service role needs an `uninstall.yaml` tasks file so deployments can be cleanly removed:
+
+```bash
+ansible-playbook playbooks/maintenance/uninstall.yaml -e "role=portainer" -l swarm_lab
+```
+
+- [ ] `portainer`
+- [ ] `beszel`
+- [ ] `uptimekuma`
+- [ ] `alloy`
+- [ ] `traefik`
+- [x] `dozzle`
+
 ## Known limitations
 
 - **`dozzle` agent auth** — agents expose port 7007 with no authentication. `dozzle_agent_bind_ip`

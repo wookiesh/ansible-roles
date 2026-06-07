@@ -1,0 +1,24 @@
+---
+- name: Remove Dozzle (swarm stack)
+  ansible.builtin.command: docker stack rm dozzle
+  register: dozzle_stack_rm
+  changed_when: dozzle_stack_rm.rc == 0
+  failed_when: false
+  when:
+    - dozzle_deployment_mode == "stack"
+    - inventory_hostname == docker_swarm_manager
+  become: true
+
+- name: Remove Dozzle (compose)
+  community.docker.docker_compose_v2:
+    project_src: "{{ dozzle_install_dir }}"
+    state: absent
+    remove_volumes: true
+  when: dozzle_deployment_mode == "compose"
+  become: true
+
+- name: Remove Dozzle install directory
+  ansible.builtin.file:
+    path: "{{ dozzle_install_dir }}"
+    state: absent
+  become: true
