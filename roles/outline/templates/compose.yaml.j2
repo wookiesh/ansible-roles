@@ -30,7 +30,7 @@ services:
       - wud.tag.include=\d+\.\d+\.\d+
       - wud.tag.exclude=^(.*?)(rc|beta|alpha|dev|pre|fix|nightly|base|32bit).*$
       - traefik.enable=true
-      - traefik.http.routers.outline.rule=Host(`{{ outline_fqdn }}`)
+      - traefik.http.routers.outline.rule={{ ([outline_fqdn] + (outline_extra_fqdns | default([]))) | map('regex_replace', '^(.*)$', 'Host(`\\1`)') | join(' || ') }}
       - traefik.http.routers.outline.entrypoints=websecure
 {% if traefik_certresolver | default('') %}
       - traefik.http.routers.outline.tls.certresolver={{ traefik_certresolver }}
