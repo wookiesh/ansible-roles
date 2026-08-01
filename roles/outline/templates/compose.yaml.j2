@@ -32,6 +32,9 @@ services:
       - traefik.enable=true
       - traefik.http.routers.outline.rule={{ ([outline_fqdn] + (outline_extra_fqdns | default([]))) | map('regex_replace', '^(.*)$', 'Host(`\\1`)') | join(' || ') }}
       - traefik.http.routers.outline.entrypoints=websecure
+{% if outline_traefik_extra_middlewares %}
+      - traefik.http.routers.outline.middlewares={{ outline_traefik_extra_middlewares | join(',') }}
+{% endif %}
 {% if traefik_certresolver | default('') %}
       - traefik.http.routers.outline.tls.certresolver={{ traefik_certresolver }}
 {% else %}

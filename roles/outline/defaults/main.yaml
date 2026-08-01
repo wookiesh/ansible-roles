@@ -9,6 +9,10 @@ outline_redis_image: "redis:{{ outline_redis_image_tag }}"
 outline_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/outline"
 outline_fqdn: "wiki.{{ base_domain }}"
 outline_extra_fqdns: []
+# Extra Traefik middleware refs (e.g. "outline-csp@file") attached to the outline
+# router — needed when outline_extra_fqdns is set, since Outline's own CSP
+# script-src is hardcoded to OUTLINE_URL and rejects any other serving host.
+outline_traefik_extra_middlewares: []
 outline_network: "{{ traefik_network_name | default('traefik_public') }}"
 
 # App
