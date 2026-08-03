@@ -198,12 +198,13 @@
     - name: Build list of non-internal Primary zones to sync
       ansible.builtin.set_fact:
         dns_server__zones_to_sync: >-
-          {{
-            dns_server__primary_zones_list.json.response.zones
-            | selectattr('type', 'equalto', 'Primary')
-            | rejectattr('internal', 'equalto', true)
-            | list
-          }}
+          {%- set ns = namespace(zones=[]) -%}
+          {%- for zone in dns_server__primary_zones_list.json.response.zones -%}
+            {%- if zone.type == 'Primary' and not (zone.internal | default(false)) -%}
+              {%- set ns.zones = ns.zones + [zone] -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.zones }}
       when: not (dns_server__is_primary | bool)
 
     - name: Create missing Secondary zones discovered on primary
