@@ -33,7 +33,7 @@ alloy_native_scrape_targets:
   - { job_name: "smtp_relay_node", address: "127.0.0.1:9100" }
   - { job_name: "smtp_relay_postfix", address: "127.0.0.1:9154" }
 alloy_native_log_targets:
-  - { job_name: "smtp_relay_postfix_log", path: "/var/lib/prometheus/postfix-exporter/mail.log" }
+  - { job_name: "smtp_relay_postfix_log", path: "/var/log/mail.log" }
 ```
 
 ## Verification

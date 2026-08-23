@@ -54,17 +54,8 @@
   changed_when: false
 
 # --- Postfix exporter handlers ---
-# prometheus-postfix-exporter and rsyslog are normal, properly
-# systemd-managed units (unlike postfix.service) — the systemd module is
-# the correct tool here.
-
-# Ubuntu's rsyslog.service doesn't define an ExecReload — "reload" isn't a
-# valid job type for this unit here, restart is the only option.
-- name: Restart rsyslog
-  ansible.builtin.systemd:
-    name: rsyslog
-    state: restarted
-  become: true
+# prometheus-postfix-exporter is a normal, properly systemd-managed unit
+# (unlike postfix.service) — the systemd module is the correct tool here.
 
 - name: Restart postfix-exporter
   ansible.builtin.systemd:

@@ -39,7 +39,7 @@ This role configures Postfix as either a null client or relay host following 202
 
 ### Prometheus Exporter (opt-in, any mode)
 - `smtp_exporter_enabled`: Install `prometheus-postfix-exporter`, listening on `:9154` (default: `false`)
-- Reads from a private rsyslog-fed log file (`/var/lib/prometheus/postfix-exporter/mail.log`), not the package's systemd/journal default — Postfix's master process isn't managed by `postfix@-.service` on these hosts (see the stub note above), so the journal-based default silently produces no metrics. `tasks/exporter.yaml` deploys the rsyslog rule and a systemd `ExecStart` override to fix this.
+- Reads from the standard `/var/log/mail.log` (via a systemd `ExecStart` override in `tasks/exporter.yaml`), not the package's systemd/journal default — Postfix's master process isn't managed by `postfix@-.service` on these hosts (see the stub note above), so the journal-based default silently produces no metrics. No private log copy needed: `/var/log/mail.log` already exists, is rsyslog-rotated out of the box, and the `alloy_native` role tails the same file for log shipping.
 - Pair with the `node_exporter` role (separate, generic — not part of this role) for host-level metrics on `:9100`.
 
 ### Security & TLS
@@ -310,8 +310,7 @@ postconf -n  # Show effective configuration
 - That's the *relay's own* access control, not this role's — see "One relay's own access control isn't yours to fix" in the "Multi-Relay Mode" section above. Check whether the sender is actually meant to go through that specific relay at all; it may correctly belong to a different entry in `smtp_relay_domain_map` instead.
 
 **Postfix exporter (`smtp_exporter_enabled`): `postfix_*` metrics stay empty / journal `Permission denied`:**
-- rsyslogd on Debian/Ubuntu runs unprivileged as `syslog:adm`, not root — it cannot chown a file to `prometheus:prometheus`, and cannot write to one that already has that ownership either. The private log (`/var/lib/prometheus/postfix-exporter/mail.log`) must stay `syslog:adm` mode `0640` (same as `/var/log/mail.log` itself); the exporter reads it via the `adm` supplementary group added in the systemd override, not via file ownership. If this ever regresses (e.g. someone "fixes" the ownership by hand): `sudo systemctl restart rsyslog prometheus-postfix-exporter` after correcting `chown syslog:adm`.
-- The exporter also opens its log file eagerly at startup and exits if it doesn't exist yet — the role pre-creates it for exactly this reason. Don't remove that task without replacing the race-avoidance some other way.
+- `/var/log/mail.log` is `syslog:adm` mode `0640` — the exporter (and `alloy_native`) read it via the `adm` supplementary group added in their respective systemd overrides/user config, not via file ownership. Don't `chown` it to `prometheus`/`alloy`; rsyslogd runs unprivileged as `syslog:adm` and would fail to write to a file it no longer owns.
 
 ### Debug Commands
 

@@ -5,10 +5,10 @@
 # managed by postfix@-.service (see tasks/main.yml's note on the
 # Type=oneshot/ExecStart=/bin/true systemd stub) — journal entries for
 # postfix show _SYSTEMD_UNIT=session-XXXX.scope instead, so the exporter
-# would silently produce empty metrics forever. Instead, feed it a private
-# log file via rsyslog (the package ships the exact rsyslog rule for this,
-# reused verbatim here as an Ansible-managed file) and override the unit's
-# ExecStart to read that file instead of the journal.
+# would silently produce empty metrics forever. Instead, override the
+# unit's ExecStart to read the standard /var/log/mail.log directly (same
+# file rsyslog already maintains and rotates via its own logrotate config —
+# no private copy needed, the exporter is the only other reader).
 
 - name: Install Postfix Prometheus exporter
   ansible.builtin.apt:
@@ -16,39 +16,6 @@
     state: present
     update_cache: true
   become: true
-
-- name: Deploy rsyslog rule feeding the exporter's private mail log
-  ansible.builtin.copy:
-    src: prometheus-postfix-exporter.rsyslog.conf
-    dest: /etc/rsyslog.d/prometheus-postfix-exporter.conf
-    mode: "0644"
-    owner: root
-    group: root
-  become: true
-  notify: Restart rsyslog
-
-# rsyslog's omfile only creates its target file lazily, on the first matching
-# log line — but the exporter opens the file eagerly at startup and exits
-# fatally ("no such file or directory") if it isn't there yet. Pre-create it
-# so first start doesn't race rsyslog for it.
-#
-# Ownership matters here: rsyslogd on these hosts runs unprivileged as
-# syslog:adm (verified — same as /var/log/mail.log itself), not root. It
-# cannot chown an existing file to any other owner, so the file must already
-# be syslog:adm, not prometheus:prometheus, or rsyslog fails with
-# "Permission denied" the moment it tries to write to it. The exporter reads
-# it via the `adm` supplementary group instead (see the override below).
-- name: Pre-create the exporter's private mail log (avoids a startup race with rsyslog)
-  ansible.builtin.file:
-    path: /var/lib/prometheus/postfix-exporter/mail.log
-    state: touch
-    mode: "0640"
-    owner: syslog
-    group: adm
-    access_time: preserve
-    modification_time: preserve
-  become: true
-  notify: Restart postfix-exporter
 
 - name: Create postfix-exporter systemd override directory
   ansible.builtin.file:
@@ -63,7 +30,7 @@
 # stub that must not be fought — see tasks/main.yml), this is a normal,
 # properly systemd-managed unit, and overriding just ExecStart via a drop-in
 # is standard Debian admin practice that survives package upgrades.
-- name: Override postfix-exporter to read the private log file instead of the journal
+- name: Override postfix-exporter to read /var/log/mail.log instead of the journal
   ansible.builtin.copy:
     src: prometheus-postfix-exporter-override.conf
     dest: /etc/systemd/system/prometheus-postfix-exporter.service.d/override.conf
