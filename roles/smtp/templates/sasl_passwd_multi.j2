@@ -1,0 +1,6 @@
+# Managed by Ansible — SASL credentials keyed by relayhost.
+# Source of truth: smtp_relay_credentials. Do not edit by hand — see
+# tasks/multi_relay.yaml and the role README's "Multi-Relay Mode" section.
+{% for relayhost, creds in smtp_relay_credentials.items() %}
+{{ relayhost }} {{ creds.user }}:{{ creds.password }}
+{% endfor %}

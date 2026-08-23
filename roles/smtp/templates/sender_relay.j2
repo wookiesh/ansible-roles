@@ -1,0 +1,6 @@
+# Managed by Ansible — sender domain to relayhost mapping.
+# Source of truth: smtp_relay_domain_map. Do not edit by hand — see
+# tasks/multi_relay.yaml and the role README's "Multi-Relay Mode" section.
+{% for entry in smtp_relay_domain_map %}
+@{{ entry.domain }} {{ entry.relayhost }}
+{% endfor %}

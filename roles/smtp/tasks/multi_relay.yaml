@@ -1,0 +1,64 @@
+---
+- name: Deploy sender-to-relayhost domain map
+  ansible.builtin.template:
+    src: sender_relay.j2
+    dest: /etc/postfix/sender_relay
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
+    - Postmap sender_relay
+    - Reload postfix (multi-relay safe)
+
+- name: Deploy SASL credentials for each relayhost
+  ansible.builtin.template:
+    src: sasl_passwd_multi.j2
+    dest: /etc/postfix/sasl_passwd
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  notify:
+    - Postmap sasl_passwd (multi-relay)
+    - Reload postfix (multi-relay safe)
+
+- name: Deploy sender allowlist
+  ansible.builtin.template:
+    src: sender_access.j2
+    dest: /etc/postfix/sender_access
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  # regexp: maps are read directly, no postmap compile step needed
+  notify: Reload postfix (multi-relay safe)
+
+- name: Remove any stale hash-compiled sender_access.db from a previous non-regexp map
+  ansible.builtin.file:
+    path: /etc/postfix/sender_access.db
+    state: absent
+  become: true
+
+- name: Keep the Postfix chroot copy of /etc/hosts in sync
+  ansible.builtin.copy:
+    src: /etc/hosts
+    dest: /var/spool/postfix/etc/hosts
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  # The smtp service runs chrooted (see master.cf); /var/spool/postfix/etc/hosts
+  # is a copy, not a symlink, and does NOT auto-sync when /etc/hosts changes
+  # (unlike resolv.conf/nsswitch.conf/services/host.conf, which get synced by
+  # some other external mechanism — likely resolvconf/systemd-resolved hooks).
+  # Idempotent: only reports changed when the copies actually differ, so this
+  # task doubles as ongoing drift protection on every run, regardless of what
+  # changed /etc/hosts.
+  notify: Reload postfix (multi-relay safe)
+
+- name: Verify multi-relay configuration
+  ansible.builtin.command: postfix check
+  become: true
+  changed_when: false

@@ -30,6 +30,13 @@ This role configures Postfix as either a null client or relay host following 202
 - `smtp_external_relayhost`: External relay for outgoing mail (default: `""`)
 - `smtp_external_relayhost_port`: External relay port (default: `587`)
 
+### Multi-Relay Configuration
+- `smtp_multi_relay_enabled`: Configure as a sender-dependent multi-relay smart-host (default: `false`)
+- `smtp_relay_domain_map`: List of `{domain, relayhost}` — single source of truth for `sender_relay`, `sender_access`, and (with `smtp_relay_credentials`) `sasl_passwd` (required if `smtp_multi_relay_enabled`) (default: `[]`)
+- `smtp_relay_credentials`: Dict keyed by relayhost string → `{user, password}`; every relayhost used in `smtp_relay_domain_map` must have a matching key, enforced at validation time (default: `{}`)
+- `smtp_myhostname`: Explicit `myhostname` override, required for this mode — see "Why `smtp_myhostname` is required" below (default: `""`, falls back to `ansible_fqdn` for other modes)
+- `smtp_mynetworks`, `smtp_banner_text`, `smtp_inet_protocols`, `smtp_enable_long_queue_ids`, `smtp_soft_error_limit`, `smtp_sasl_mechanism_filter`: overridable base settings shared by all modes (see `defaults/main.yml`); unset behaves exactly as before this feature was added
+
 ### Security & TLS
 - `smtp_use_tls`: Enable TLS for outgoing connections (default: `true`)
 - `smtp_tls_security_level`: TLS security level (default: `"encrypt"`)
@@ -76,6 +83,62 @@ smtp_external_relayhost_port: 587
 vault_smtp_sasl_user: "user@provider.com"
 vault_smtp_sasl_password: "secure_password"
 ```
+
+### Multi-Relay Mode
+For a pure send-only smart-host relay serving **several independent sender
+domains**, each routed to its own external relay/provider with its own SASL
+credentials — e.g. one internal domain goes out via one ESP, a partner
+domain goes out via a dedicated relay a partner organization provided you.
+Not the same as Relay Host Mode above, which assumes one external relayhost
+for everything.
+
+```yaml
+# group_vars/smtp_relays.yaml
+smtp_multi_relay_enabled: true
+smtp_mynetworks: "127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128, 192.168.0.0/16, 172.16.0.0/12, 10.0.0.0/8"
+smtp_inet_protocols: "ipv4"
+smtp_tls_security_level: "may" # or "encrypt" if every sender speaks STARTTLS
+smtp_sasl_auth_enable: true
+smtp_sasl_mechanism_filter: "plain"
+
+smtp_relay_domain_map:
+  - { domain: "example.com", relayhost: "smtp.provider.com" }
+  - { domain: "partner.example", relayhost: "[203.0.113.9]:587" }
+
+smtp_relay_credentials:
+  "smtp.provider.com": { user: "{{ vault_smtp_provider_user }}", password: "{{ vault_smtp_provider_password }}" }
+  "[203.0.113.9]:587": { user: "{{ vault_smtp_partner_user }}", password: "{{ vault_smtp_partner_password }}" }
+
+# host_vars/<hostname>.yaml — one per relay node, REQUIRED for this mode
+smtp_myhostname: "<hostname>.<real-fqdn-domain>"
+```
+
+**Why `smtp_myhostname` is required for this mode**: every other mode falls
+back to `ansible_fqdn`, which is convenient but silently wrong if the box's
+`/etc/hosts`/DNS is misconfigured — `ansible_fqdn` will happily resolve to a
+name that only works locally, is easy to miss in review, and quietly breaks
+EHLO identity / deliverability. Not worth the risk on a mail relay: set it
+explicitly per host instead.
+
+**Sender-only routing, not recipient-based**: `smtp_relay_domain_map` keys
+on the envelope SENDER domain. Mail addressed *to* a domain in the map does
+not get special routing — it's routed based on whoever is sending it. If you
+need routing based on the sender being a *specific* partner domain even when
+addressing a third party, add that partner's domain to the map; don't expect
+recipient-side matching.
+
+**One relay's own access control isn't yours to fix**: a relay you route to
+may enforce its own sender allowlist independently of this role (e.g. a
+partner-provided relay account scoped to specific envelope senders on their
+side). SASL auth succeeding does not guarantee they'll accept every sender
+you point at them — check their logs for a `554 ... Sender address
+rejected` that mentions *their* relay, not yours, if that happens.
+
+See `tests/multi_relay_credentials_check.md` (design note, not an automated
+test) for how the credentials-completeness validation works and why it
+matters — this exact class of bug (a domain added to the routing map but its
+credentials forgotten) caused a real same-day outage before this role
+feature existed.
 
 ## Example Playbook
 
@@ -137,6 +200,7 @@ all:
 - `smtp_configure`: Configure Postfix settings
 - `smtp_null_client`: Configure null client mode
 - `smtp_relayhost`: Configure relay host mode
+- `smtp_multi_relay`: Configure multi-relay mode
 - `smtp_validate`: Validate configuration variables
 
 ## Directory Structure
@@ -145,11 +209,14 @@ all:
 /etc/postfix/
 ├── main.cf                 # Main Postfix configuration
 ├── master.cf              # Service definitions (managed by package)
-├── sasl_passwd            # SASL authentication (relay mode only)
+├── sasl_passwd            # SASL authentication (relay mode and multi-relay mode)
 ├── sasl_passwd.db         # Compiled SASL database
 ├── header_checks          # Header rewriting rules
 ├── sender_canonical       # Sender address rewriting
 ├── recipient_canonical    # Recipient address rewriting
+├── sender_relay           # Multi-relay mode only: sender domain → relayhost (hash: map)
+├── sender_relay.db        # Compiled sender_relay database
+├── sender_access          # Multi-relay mode only: sender allowlist (regexp: map, not compiled)
 └── aliases.db            # System aliases database
 ```
 
@@ -229,11 +296,35 @@ postconf -n  # Show effective configuration
 - Verify firewall allows port 25/587
 - Review Postfix queue: `mailq`
 
+**Multi-relay mode: sender gets an immediate `554 ... Access denied`:**
+- That sender's domain isn't in `smtp_relay_domain_map` — check `/etc/postfix/sender_access` on the host. This is intentional: only mapped domains may relay at all (see `smtpd_sender_restrictions` in the "Multi-Relay Mode" section above), even from `mynetworks`.
+- A raw hostname-based sender (e.g. `root@some-host.internal.example.com`) is the most common real cause — fix that host's mail sender config to use a mapped domain rather than widening the allowlist.
+
+**Multi-relay mode: one relay rejects a sender even though SASL auth succeeds:**
+- That's the *relay's own* access control, not this role's — see "One relay's own access control isn't yours to fix" in the "Multi-Relay Mode" section above. Check whether the sender is actually meant to go through that specific relay at all; it may correctly belong to a different entry in `smtp_relay_domain_map` instead.
+
 ### Debug Commands
 
 ```bash
 # Check Postfix status
 systemctl status postfix
+```
+
+⚠️ On Debian/Ubuntu, `postfix.service` ships as `Type=oneshot,
+ExecStart=/bin/true` — Postfix supervises its own master process outside
+systemd, so `systemctl status/restart postfix` does not reliably reflect or
+control the real daemon (`active (exited)` is the normal state regardless of
+whether the master is actually running). Use instead:
+
+```bash
+# Actually control the daemon
+postfix reload   # config changes that don't affect socket binding
+postfix stop; postfix start   # inet_protocols / inet_interfaces / master.cf changes — reload alone won't rebind sockets
+postfix check    # validate config without applying
+
+# Actually verify it's up
+ps aux | grep master
+ss -tlnp | grep :25
 
 # View mail queue
 mailq
@@ -244,7 +335,7 @@ postconf -n
 # Test mail delivery
 echo "Test message" | mail -s "Test" admin@example.com
 
-# View detailed logs
+# View detailed logs (may be empty/misleading for the reasons above — prefer mail.log)
 journalctl -u postfix -f
 tail -f /var/log/mail.log
 ```

@@ -1,0 +1,10 @@
+# Managed by Ansible — strict sender allowlist (regexp map).
+# Source of truth: smtp_relay_domain_map. Do not edit by hand — see
+# tasks/multi_relay.yaml and the role README's "Multi-Relay Mode" section.
+#
+# Intentionally a regexp: map, not hash: — hash "@domain" keys do not
+# reliably match via check_sender_access the way they do for
+# sender_dependent_relayhost_maps.
+{% for entry in smtp_relay_domain_map %}
+/@{{ entry.domain.replace('.', '\\.') }}$/i OK
+{% endfor %}

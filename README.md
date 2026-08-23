@@ -20,7 +20,7 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 | [`keepalived`](roles/keepalived/) | Keepalived high availability and virtual IP management |
 | [`prompt_starship`](roles/prompt_starship/) | Install and configure the Starship shell prompt |
 | [`server`](roles/server/) | Configure automatic updates for servers |
-| [`smtp`](roles/smtp/) | Configure Postfix as null client or relay host |
+| [`smtp`](roles/smtp/) | Configure Postfix as null client, relay host, or sender-dependent multi-relay smart-host |
 | [`ssh`](roles/ssh/) | Harden SSH server configuration |
 | [`ssh_config_gen`](roles/ssh_config_gen/) | Generate `~/.ssh/config` entries from Ansible inventory |
 | [`tailscale`](roles/tailscale/) | Install and configure Tailscale VPN (`tailscale_enabled` flag kept — no hosts yet) |

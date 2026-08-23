@@ -18,3 +18,37 @@
     - smtp_sasl_auth_enable | default(false)
     - smtp_sasl_user | length > 0
     - smtp_sasl_password | length > 0
+
+# --- Multi-relay mode handlers ---
+# Debian/Ubuntu's postfix.service is a `Type=oneshot, ExecStart=/bin/true`
+# stub (Postfix supervises its own master process outside systemd), so these
+# use `postfix` CLI commands directly rather than the systemd module.
+
+- name: Reload postfix (multi-relay safe)
+  ansible.builtin.command: postfix reload
+  become: true
+  changed_when: false
+  # Safe for config that doesn't affect listening sockets (per-domain relay
+  # map files, sender_access, chroot /etc/hosts copy). Does NOT reliably
+  # rebind sockets on an already-running master — see the restart handler
+  # below for changes that need that.
+
+- name: Restart postfix (socket rebind)
+  ansible.builtin.shell: postfix stop; postfix start
+  become: true
+  changed_when: true
+  # Use for any change that can affect socket binding (inet_protocols,
+  # inet_interfaces, master.cf service definitions) — e.g. changing
+  # inet_protocols from "all" to "ipv4" left a stale IPv6 listener behind
+  # on a master that had been running for months, because `postfix reload`
+  # alone does not rebind listening sockets.
+
+- name: Postmap sender_relay
+  ansible.builtin.command: postmap /etc/postfix/sender_relay
+  become: true
+  changed_when: false
+
+- name: Postmap sasl_passwd (multi-relay)
+  ansible.builtin.command: postmap /etc/postfix/sasl_passwd
+  become: true
+  changed_when: false

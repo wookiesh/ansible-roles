@@ -7,8 +7,8 @@
       - smtp_mailname | length > 0
       - smtp_domain is defined
       - smtp_domain | length > 0
-      # Ensure only one role is enabled
-      - (smtp_null_client_enabled | default(false) and smtp_relayhost_enabled | default(false)) == false
+      # Ensure at most one mode is enabled
+      - (smtp_null_client_enabled | default(false) | int + smtp_relayhost_enabled | default(false) | int + smtp_multi_relay_enabled | default(false) | int) <= 1
       # Validate null client requirements
       - smtp_null_client_enabled | default(false) == false or smtp_relayhost | length > 0
       - smtp_relayhost_port is number
@@ -21,21 +21,35 @@
       - smtp_tls_security_level in ['none', 'may', 'encrypt', 'verify', 'secure']
       # Validate SASL settings (only required for relay hosts)
       - smtp_relayhost_enabled | default(false) == false or smtp_sasl_auth_enable == false or (smtp_sasl_user | length > 0 and smtp_sasl_password | length > 0)
+      # Validate multi-relay requirements
+      - smtp_multi_relay_enabled | default(false) == false or smtp_relay_domain_map | length > 0
+      - smtp_multi_relay_enabled | default(false) == false or smtp_myhostname | length > 0
+      # Every relayhost referenced in smtp_relay_domain_map must have matching credentials
+      - >-
+        smtp_multi_relay_enabled | default(false) == false or
+        (smtp_relay_domain_map | map(attribute='relayhost') | unique | list
+        | difference(smtp_relay_credentials.keys() | list) | length == 0)
     fail_msg: |
       ❌ Invalid SMTP configuration:
       - smtp_enabled: {{ smtp_enabled }}
       - smtp_null_client_enabled: {{ smtp_null_client_enabled }}
       - smtp_relayhost_enabled: {{ smtp_relayhost_enabled }}
+      - smtp_multi_relay_enabled: {{ smtp_multi_relay_enabled }}
       - smtp_relayhost: {{ smtp_relayhost | default('UNDEFINED') }}
       - smtp_relay_domains: {{ smtp_relay_domains | default('UNDEFINED') }}
       - smtp_sasl_user: {{ smtp_sasl_user | default('UNDEFINED') }}
       - smtp_sasl_password: {{ 'SET' if smtp_sasl_password | length > 0 else 'UNSET' }}
       - smtp_internal_domain: {{ smtp_internal_domain | default('UNDEFINED') }}
+      - smtp_myhostname: {{ smtp_myhostname | default('UNDEFINED') }}
+      - smtp_relay_domain_map: {{ smtp_relay_domain_map | default('UNDEFINED') }}
+      - smtp_relay_credentials keys: {{ smtp_relay_credentials.keys() | list if smtp_relay_credentials is defined else 'UNDEFINED' }}
 
-      Required: Exactly one of smtp_null_client_enabled or smtp_relayhost_enabled must be true
+      Required: At most one of smtp_null_client_enabled / smtp_relayhost_enabled / smtp_multi_relay_enabled may be true
       Null client: smtp_relayhost must be set
       Relay host: smtp_relay_domains and smtp_internal_domain must be set
       SASL auth: smtp_sasl_user and smtp_sasl_password must be set (only for relay hosts with SASL)
+      Multi-relay: smtp_relay_domain_map must be non-empty, smtp_myhostname must be set explicitly,
+        and every relayhost used in smtp_relay_domain_map must have a matching key in smtp_relay_credentials
     success_msg: "✅ SMTP variables validated successfully"
 
 - name: Include installation tasks
@@ -58,6 +72,22 @@
     - smtp_relayhost
     - smtp_configure
 
+- name: Include multi-relay configuration
+  ansible.builtin.include_tasks: multi_relay.yaml
+  when: smtp_enabled and smtp_multi_relay_enabled
+  tags:
+    - smtp_multi_relay
+    - smtp_configure
+
+# NOTE: on Debian/Ubuntu, postfix.service ships as `Type=oneshot,
+# ExecStart=/bin/true` — Postfix supervises its own master process outside
+# systemd. This task's `state: started` is effectively a no-op for judging
+# or controlling the real daemon (systemd will happily report success
+# either way); it only matters for the `enabled: true` boot-time symlink.
+# Actual lifecycle management for multi-relay mode is handled via
+# `postfix reload`/`postfix stop && postfix start` in handlers/main.yml —
+# see the comments there for why `postfix reload` alone is not always
+# sufficient (e.g. after changing inet_protocols).
 - name: Ensure postfix is started and enabled
   ansible.builtin.systemd:
     name: postfix

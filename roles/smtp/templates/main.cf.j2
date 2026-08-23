@@ -1,16 +1,17 @@
 # Managed by Ansible - Postfix Main Configuration
-# SMTP Role: {% if smtp_null_client_enabled %}Null Client{% elif smtp_relayhost_enabled %}Relay Host{% else %}Disabled{% endif %}
+# SMTP Role: {% if smtp_null_client_enabled %}Null Client{% elif smtp_relayhost_enabled %}Relay Host{% elif smtp_multi_relay_enabled %}Multi-Relay{% else %}Disabled{% endif %}
 
 # Basic Settings
-smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+smtpd_banner = {{ smtp_banner_text }}
 biff = no
 compatibility_level = 3.6
 append_dot_mydomain = yes
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
-mynetworks = 127.0.0.0/8, [::1]/128
-myhostname = {{ ansible_fqdn }}
+mynetworks = {{ smtp_mynetworks }}
+myhostname = {{ smtp_myhostname if smtp_myhostname | length > 0 else ansible_fqdn }}
 myorigin = /etc/mailname
+inet_protocols = {{ smtp_inet_protocols }}
 
 # Default destination settings (will be overridden by role-specific configuration)
 mydestination = $myhostname, localhost.$mydomain, localhost
@@ -27,13 +28,20 @@ smtp_tls_mandatory_ciphers = {{ smtp_tls_mandatory_ciphers }}
 smtp_sasl_auth_enable = {{ 'yes' if smtp_sasl_auth_enable else 'no' }}
 smtp_sasl_password_maps = {{ smtp_sasl_password_maps }}
 smtp_sasl_security_options = {{ smtp_sasl_security_options }}
+{% if smtp_sasl_tls_security_options | length > 0 %}
 smtp_sasl_tls_security_options = {{ smtp_sasl_tls_security_options }}
+{% endif %}
+{% if smtp_sasl_mechanism_filter | length > 0 %}
+smtp_sasl_mechanism_filter = {{ smtp_sasl_mechanism_filter }}
+{% endif %}
 
 # Security Settings
 disable_vrfy_command = {{ 'yes' if smtp_disable_vrfy_command else 'no' }}
 strict_rfc821_envelopes = {{ 'yes' if smtp_strict_rfc821_envelopes else 'no' }}
 smtpd_delay_reject = {{ 'yes' if smtp_delay_reject else 'no' }}
 smtpd_helo_required = {{ 'yes' if smtp_helo_required else 'no' }}
+enable_long_queue_ids = {{ 'yes' if smtp_enable_long_queue_ids else 'no' }}
+smtpd_soft_error_limit = {{ smtp_soft_error_limit }}
 smtpd_hard_error_limit = {{ smtp_hard_error_limit }}
 smtpd_error_sleep_time = {{ smtp_error_sleep_time }}
 message_size_limit = {{ smtp_message_size_limit }}
@@ -85,6 +93,28 @@ smtpd_data_restrictions = permit_mynetworks, reject_unauth_pipelining
 # Minimal configuration for null client
 local_transport = error: local delivery disabled
 local_recipient_maps =
+
+{% elif smtp_multi_relay_enabled %}
+# Multi-Relay Configuration (sender-dependent routing to multiple relays)
+# Per-domain mapping (sender_relay/sasl_passwd/sender_access) applied by tasks/multi_relay.yaml
+sender_dependent_relayhost_maps = hash:/etc/postfix/sender_relay
+
+# Inbound TLS (STARTTLS optional by default via smtp_tls_security_level —
+# many internal clients still submit on plain port 25 without TLS at all)
+smtpd_tls_security_level = {{ smtp_tls_security_level }}
+smtpd_tls_cert_file = /etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file = /etc/ssl/private/ssl-cert-snakeoil.key
+
+# Strict sender allowlist: only domains present in smtp_relay_domain_map may
+# relay at all, independent of mynetworks — an unrecognized sender gets an
+# immediate 554 rather than a silent low-deliverability direct send.
+smtpd_sender_restrictions = check_sender_access regexp:/etc/postfix/sender_access, reject
+
+# Native Postfix keywords only. Do NOT put permit_sender_access (or any other
+# permit_*) ahead of reject_unauth_destination here without real SASL auth
+# enabled server-side for INBOUND connections — that combination is an
+# open-relay-by-sender-spoofing gap for anyone who can reach port 25.
+smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, reject_non_fqdn_sender, reject_unknown_sender_domain, reject_sender_login_mismatch
 
 {% endif %}
 

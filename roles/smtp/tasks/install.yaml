@@ -49,4 +49,8 @@
     mode: "0644"
     backup: true
   become: true
-  notify: Restart postfix
+  # Multi-relay mode uses its own handler: main.cf changes here can include
+  # socket-binding parameters (inet_protocols, inet_interfaces), and a plain
+  # `postfix reload` does not rebind listening sockets on an already-running
+  # master — a stop+start is needed for correctness. See handlers/main.yml.
+  notify: "{{ 'Restart postfix (socket rebind)' if smtp_multi_relay_enabled else 'Restart postfix' }}"

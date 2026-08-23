@@ -3,10 +3,27 @@
 # Following 2025 Ansible best practices
 
 # Main Configuration
-smtp_enabled: "{{ smtp_null_client_enabled or smtp_relayhost_enabled }}"
+smtp_enabled: "{{ smtp_null_client_enabled or smtp_relayhost_enabled or smtp_multi_relay_enabled }}"
 smtp_mailname: "{{ ansible_fqdn }}"
 smtp_domain: "{{ server_domain if server_domain is defined else ansible_domain }}"
 smtp_internal_domain: "" # Required for relay mode: internal FQDN suffix for address rewriting (e.g. lan.example.com)
+
+# Base settings shared by every mode. Defaults reproduce the template's
+# previous hardcoded values exactly, so setting none of these changes
+# nothing for existing consumers.
+smtp_banner_text: "$myhostname ESMTP $mail_name (Debian/GNU)"
+smtp_mynetworks: "127.0.0.0/8, [::1]/128"
+smtp_inet_protocols: "all"
+smtp_enable_long_queue_ids: false # Postfix default is "no"
+smtp_soft_error_limit: 10 # Postfix default
+
+# Explicit myhostname override. Leave empty to keep the previous behavior
+# (falls back to ansible_fqdn). Set this for any host where the hostname
+# MUST be correct and stable regardless of local DNS/hosts-file state —
+# auto-detection silently produces a wrong-but-plausible value if /etc/hosts
+# or DNS is misconfigured, which is easy to miss (e.g. it broke EHLO
+# identity on a production relay for months before being noticed).
+smtp_myhostname: ""
 
 # Null Client Configuration
 smtp_null_client_enabled: false
@@ -19,6 +36,28 @@ smtp_relay_domains: [] # Required if relayhost_enabled
 smtp_external_relayhost: ""
 smtp_external_relayhost_port: 587
 
+# Multi-Relay Configuration — sender-dependent routing to multiple external
+# relays (e.g. different sender domains going out via different providers),
+# each authenticated with its own SASL credentials. For a pure send-only
+# smart-host relay serving several independent domains/partners. See the
+# README's "Multi-Relay Mode" section.
+smtp_multi_relay_enabled: false
+
+# One list = one source of truth. Generates sender_relay, sender_access,
+# and (together with smtp_relay_credentials) sasl_passwd, so the three
+# files structurally cannot drift out of sync with each other.
+#   smtp_relay_domain_map:
+#     - { domain: "example.com", relayhost: "smtp.provider.com" }
+#     - { domain: "partner.example", relayhost: "[203.0.113.9]:587" }
+smtp_relay_domain_map: []
+
+# SASL credentials keyed by relayhost string — must match the relayhost
+# values used in smtp_relay_domain_map exactly (brackets/port included).
+# Source real values from vault; never commit plaintext.
+#   smtp_relay_credentials:
+#     "smtp.provider.com": { user: "...", password: "{{ vault_... }}" }
+smtp_relay_credentials: {}
+
 # Security & TLS Configuration
 smtp_use_tls: true
 smtp_tls_security_level: "encrypt"
@@ -26,6 +65,7 @@ smtp_sasl_auth_enable: false
 smtp_sasl_security_options: "noanonymous"
 smtp_sasl_tls_security_options: "noanonymous,noplaintext"
 smtp_sasl_password_maps: "hash:/etc/postfix/sasl_passwd"
+smtp_sasl_mechanism_filter: "" # e.g. "plain" — empty means Postfix tries all mechanisms (its own default)
 
 # Authentication (should use vault variables in production)
 smtp_sasl_user: "{{ vault_smtp_sasl_user | default('') }}"
