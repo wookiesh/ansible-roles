@@ -52,6 +52,16 @@ alloy_scrape_interval: "30s"
 #       scrape_interval: "30s"  # optional, defaults to alloy_scrape_interval
 alloy_extra_scrape_targets: []
 
+# When alloy runs as a Swarm `global` service (one replica per manager),
+# every replica renders the same alloy_extra_scrape_targets — scraping
+# remote, non-Docker targets from every manager independently multiplies
+# active series for no benefit (unlike Traefik's own local metrics, which
+# are legitimately per-node). Set this to a single inventory_hostname (e.g.
+# the cluster's designated primary/manager) to have only that one host
+# render the extra scrape blocks. Empty (default) = every host scrapes,
+# preserving prior behavior.
+alloy_extra_scrape_targets_host: ""
+
 # Traefik log collection
 # Set alloy_traefik_log_path to match traefik_access_log_path
 alloy_traefik_logs_enabled: true

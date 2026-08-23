@@ -13,14 +13,26 @@
   become: true
   when: ansible_os_family == "RedHat"
 
-- name: Preserve SSH_AUTH_SOCK in sudoers
+- name: Preserve SSH_AUTH_SOCK in sudoers and force a pty for pam_ssh_agent_auth
   ansible.builtin.copy:
     content: |
       Defaults env_keep += "SSH_AUTH_SOCK"
+      Defaults use_pty
     dest: /etc/sudoers.d/ssh_agent_auth
     mode: "0440"
     validate: /usr/sbin/visudo -cf %s
   become: true
+  # pam_ssh_agent_auth needs a real controlling terminal to do its challenge —
+  # Ansible's own SSH connections never allocate one (especially with
+  # pipelining enabled, which explicitly disables it), so without `use_pty`
+  # every `become: true` task that isn't already state-satisfied fails with
+  # "Missing sudo password" the moment Ansible runs non-interactively.
+  # `use_pty` makes sudo allocate its own pty for the command it runs, which
+  # satisfies the PAM module regardless of whether the connection itself had
+  # one. Verified 2026-08-24: DNS/swarm hosts (which already run
+  # pam_ssh_agent_auth via this role) hit this exact failure; the SMTP relay
+  # hosts never had — they use a separate, unrelated NOPASSWD sudoers entry
+  # from initial VM provisioning (2024-06-08), not this role.
 
 - name: Configure PAM sudo to use SSH agent auth
   ansible.builtin.lineinfile:
