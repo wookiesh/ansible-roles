@@ -5,3 +5,13 @@
     state: present
     update_cache: true
   become: true
+
+# The package binds all interfaces by default. Scraping is local-only
+# (see the alloy_native role), so restrict it to localhost.
+- name: Restrict node_exporter to localhost
+  ansible.builtin.lineinfile:
+    path: /etc/default/prometheus-node-exporter
+    regexp: '^ARGS='
+    line: 'ARGS="--web.listen-address=127.0.0.1:9100"'
+  become: true
+  notify: Restart node_exporter

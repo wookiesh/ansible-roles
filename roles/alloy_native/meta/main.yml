@@ -1,0 +1,23 @@
+---
+dependencies: []
+galaxy_info:
+  author: ANA Infra
+  description: Native (non-Docker) Grafana Alloy agent for metrics + logs
+  company: ANA
+  license: MIT
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+
+  galaxy_tags:
+    - monitoring
+    - observability
+    - prometheus
+    - loki

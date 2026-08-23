@@ -1,0 +1,74 @@
+---
+- name: Assert Grafana Cloud API key is provided
+  ansible.builtin.assert:
+    that:
+      - vault_grafana_cloud_api_key is defined
+      - vault_grafana_cloud_api_key | length > 0
+    fail_msg: "vault_grafana_cloud_api_key must be set (see group_vars/all/vault.yaml)"
+
+- name: Create apt keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Add Grafana apt repository GPG key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+  become: true
+
+- name: Add Grafana apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    filename: grafana
+    state: present
+    update_cache: true
+  become: true
+
+- name: Install Alloy
+  ansible.builtin.apt:
+    name: alloy
+    state: present
+  become: true
+
+# The apt package's postinst creates this user. It needs the `adm`
+# supplementary group to read syslog-owned log files (e.g. the SMTP relay's
+# private postfix-exporter log, same access pattern already used by the
+# prometheus-postfix-exporter package itself).
+- name: Add alloy user to the adm group
+  ansible.builtin.user:
+    name: alloy
+    groups: adm
+    append: true
+  become: true
+
+- name: Deploy Grafana Cloud API key
+  ansible.builtin.copy:
+    content: "{{ vault_grafana_cloud_api_key }}"
+    dest: /etc/alloy/grafana_cloud_api_key
+    owner: alloy
+    group: alloy
+    mode: "0600"
+  become: true
+  notify: Restart alloy
+
+- name: Deploy Alloy configuration
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: /etc/alloy/config.alloy
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart alloy
+
+- name: Ensure Alloy is enabled and running
+  ansible.builtin.systemd:
+    name: alloy
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true

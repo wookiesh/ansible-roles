@@ -81,40 +81,6 @@ prometheus.scrape "traefik" {
 }
 
 {% endif %}
-{% if alloy_metrics_enabled and alloy_extra_scrape_targets | length > 0 %}
-// --- Extra remote scrape targets (native exporters on non-Docker hosts) ---
-//
-// This config file is identical on every replica of a `global`-mode Swarm
-// service, and on this repo's swarm clusters /opt/docker is a *shared*
-// GlusterFS volume — there is no such thing as "per-host" content here, so
-// host-scoping cannot be done via Jinja/inventory_hostname at template time
-// (every replica renders the same file). Instead, dedup at Alloy's own
-// runtime using constants.hostname (genuinely distinct per container) via a
-// relabel step, so only one designated replica's samples survive.
-{% if alloy_extra_scrape_targets_host | length > 0 %}
-prometheus.relabel "extra_scrape_dedup" {
-  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-  rule {
-    source_labels = ["origin_host"]
-    regex         = "{{ alloy_extra_scrape_targets_host }}"
-    action        = "keep"
-  }
-}
-{% endif %}
-
-{% for scrape in alloy_extra_scrape_targets %}
-prometheus.scrape "{{ scrape.job_name }}" {
-  targets = [
-{% for target in scrape.targets %}
-    {"__address__" = "{{ target.address }}", "instance" = "{{ target.instance | default(target.address) }}", "origin_host" = constants.hostname},
-{% endfor %}
-  ]
-  scrape_interval = "{{ scrape.scrape_interval | default(alloy_scrape_interval) }}"
-  forward_to      = [{{ 'prometheus.relabel.extra_scrape_dedup.receiver' if alloy_extra_scrape_targets_host | length > 0 else 'prometheus.remote_write.grafana_cloud.receiver' }}]
-}
-
-{% endfor %}
-{% endif %}
 {% if alloy_metrics_enabled %}
 prometheus.remote_write "grafana_cloud" {
   endpoint {

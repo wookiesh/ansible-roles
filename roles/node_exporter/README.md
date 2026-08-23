@@ -8,7 +8,7 @@ Node metrics don't need anything Docker gives you, and pulling GitHub releases o
 
 ## Variables
 
-None — the package default (`--web.listen-address=":9100"`, all standard collectors enabled) is used as-is. Scraping is configured on the Alloy/Prometheus side (see the `alloy` role's `alloy_extra_scrape_targets`).
+None. The role rebinds the package to `--web.listen-address=127.0.0.1:9100` (default is all interfaces) since scraping is local-only — see the `alloy_native` role, which scrapes it on the same host.
 
 ## Usage
 

@@ -60,17 +60,8 @@ alloy_traefik_log_path: "{{ traefik_access_log_path }}"
 - `alloy_grafana_cloud_prometheus_username`: Prometheus numeric user ID
 - `alloy_traefik_metrics_port`: Traefik metrics port (default: `8899`)
 - `alloy_scrape_interval`: Prometheus scrape interval (default: `30s`)
-- `alloy_extra_scrape_targets`: Additional static Prometheus scrape targets, remote-written to the same endpoint (default: `[]`). For hosts this Alloy instance doesn't run on — e.g. non-Docker hosts running native exporters (`node_exporter`, etc.) — Alloy pulls from them over the network instead of needing an agent there. Requires `alloy_metrics_enabled: true`.
-  ```yaml
-  alloy_extra_scrape_targets:
-    - job_name: "smtp_relay_node"
-      targets:
-        - { address: "10.219.206.10:9100", instance: "ana-relay-postfix-01" }
-        - { address: "10.219.206.11:9100", instance: "ana-relay-postfix-02" }
-      # scrape_interval: "30s"  # optional, defaults to alloy_scrape_interval
-  ```
-- `alloy_extra_scrape_targets_host`: restrict the extra scrape targets above to a single host's samples (default: `""`, every replica's samples are kept). Alloy typically runs as a Swarm `global` service — every replica scrapes the same remote/non-Docker targets independently, multiplying active series for no benefit. Set to the cluster's designated manager (e.g. `"{{ docker_swarm_manager }}"`).
-  **Implementation note**: this can't be done by making the config file itself differ per host — on this repo's swarm clusters `/opt/docker` is a *shared* GlusterFS volume, so `config.alloy` is the same physical file for every replica regardless of which `inventory_hostname` Ansible thinks it's targeting (see root `CLAUDE.md`). Every replica renders the identical scrape block, tagged with a target label `origin_host = constants.hostname` (genuinely distinct per container at runtime); a `prometheus.relabel` component then keeps only the samples whose `origin_host` matches `alloy_extra_scrape_targets_host`, dropping the rest before remote_write.
+
+For non-Docker hosts that need their own metrics/logs (e.g. native exporters on a hardened VM), use the `alloy_native` role instead of trying to scrape them remotely from here — see its README. (An earlier remote-scrape design, `alloy_extra_scrape_targets`/`_host`, was removed 2026-08-24 in favor of that: running Alloy natively removes a cross-cluster dependency and enables log shipping too, which remote scraping alone can't do.)
 
 ### Traefik log collection
 

@@ -1,0 +1,26 @@
+---
+# Grafana Alloy — native (non-Docker) deployment for hosts that don't run
+# Docker. Installs the apt.grafana.com package directly, no container.
+
+# Grafana Cloud — Prometheus/Mimir (metrics)
+alloy_native_grafana_cloud_prometheus_url: ""
+alloy_native_grafana_cloud_prometheus_username: ""
+
+# Grafana Cloud — Loki (logs)
+alloy_native_grafana_cloud_loki_url: ""
+alloy_native_grafana_cloud_loki_username: ""
+
+# Local Prometheus scrape targets (other exporters on the same host).
+#   alloy_native_scrape_targets:
+#     - { job_name: "node", address: "127.0.0.1:9100" }
+alloy_native_scrape_targets: []
+alloy_native_scrape_interval: "30s"
+
+# Local log files to tail and ship to Loki.
+#   alloy_native_log_targets:
+#     - { job_name: "postfix_log", path: "/var/log/mail.log" }
+alloy_native_log_targets: []
+
+# Labels added to all telemetry
+alloy_native_environment: "production"
+alloy_native_cluster: ""
