@@ -37,6 +37,11 @@ This role configures Postfix as either a null client or relay host following 202
 - `smtp_myhostname`: Explicit `myhostname` override, required for this mode — see "Why `smtp_myhostname` is required" below (default: `""`, falls back to `ansible_fqdn` for other modes)
 - `smtp_mynetworks`, `smtp_banner_text`, `smtp_inet_protocols`, `smtp_enable_long_queue_ids`, `smtp_soft_error_limit`, `smtp_sasl_mechanism_filter`: overridable base settings shared by all modes (see `defaults/main.yml`); unset behaves exactly as before this feature was added
 
+### Prometheus Exporter (opt-in, any mode)
+- `smtp_exporter_enabled`: Install `prometheus-postfix-exporter`, listening on `:9154` (default: `false`)
+- Reads from a private rsyslog-fed log file (`/var/lib/prometheus/postfix-exporter/mail.log`), not the package's systemd/journal default — Postfix's master process isn't managed by `postfix@-.service` on these hosts (see the stub note above), so the journal-based default silently produces no metrics. `tasks/exporter.yaml` deploys the rsyslog rule and a systemd `ExecStart` override to fix this.
+- Pair with the `node_exporter` role (separate, generic — not part of this role) for host-level metrics on `:9100`.
+
 ### Security & TLS
 - `smtp_use_tls`: Enable TLS for outgoing connections (default: `true`)
 - `smtp_tls_security_level`: TLS security level (default: `"encrypt"`)
@@ -201,6 +206,7 @@ all:
 - `smtp_null_client`: Configure null client mode
 - `smtp_relayhost`: Configure relay host mode
 - `smtp_multi_relay`: Configure multi-relay mode
+- `smtp_exporter`: Configure the opt-in Postfix Prometheus exporter
 - `smtp_validate`: Validate configuration variables
 
 ## Directory Structure
@@ -302,6 +308,10 @@ postconf -n  # Show effective configuration
 
 **Multi-relay mode: one relay rejects a sender even though SASL auth succeeds:**
 - That's the *relay's own* access control, not this role's — see "One relay's own access control isn't yours to fix" in the "Multi-Relay Mode" section above. Check whether the sender is actually meant to go through that specific relay at all; it may correctly belong to a different entry in `smtp_relay_domain_map` instead.
+
+**Postfix exporter (`smtp_exporter_enabled`): `postfix_*` metrics stay empty / journal `Permission denied`:**
+- rsyslogd on Debian/Ubuntu runs unprivileged as `syslog:adm`, not root — it cannot chown a file to `prometheus:prometheus`, and cannot write to one that already has that ownership either. The private log (`/var/lib/prometheus/postfix-exporter/mail.log`) must stay `syslog:adm` mode `0640` (same as `/var/log/mail.log` itself); the exporter reads it via the `adm` supplementary group added in the systemd override, not via file ownership. If this ever regresses (e.g. someone "fixes" the ownership by hand): `sudo systemctl restart rsyslog prometheus-postfix-exporter` after correcting `chown syslog:adm`.
+- The exporter also opens its log file eagerly at startup and exits if it doesn't exist yet — the role pre-creates it for exactly this reason. Don't remove that task without replacing the race-avoidance some other way.
 
 ### Debug Commands
 

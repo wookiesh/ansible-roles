@@ -1,0 +1,24 @@
+---
+# Meta information for node_exporter role
+dependencies: []
+galaxy_info:
+  author: Homelab Project
+  description: Install the Prometheus node_exporter Debian/Ubuntu package
+  company: Homelab
+  license: MIT
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+
+  galaxy_tags:
+    - monitoring
+    - observability
+    - prometheus

@@ -79,6 +79,13 @@
     - smtp_multi_relay
     - smtp_configure
 
+- name: Include Postfix exporter configuration
+  ansible.builtin.include_tasks: exporter.yaml
+  when: smtp_enabled and smtp_exporter_enabled | default(false)
+  tags:
+    - smtp_exporter
+    - smtp_configure
+
 # NOTE: on Debian/Ubuntu, postfix.service ships as `Type=oneshot,
 # ExecStart=/bin/true` — Postfix supervises its own master process outside
 # systemd. This task's `state: started` is effectively a no-op for judging

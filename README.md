@@ -30,7 +30,8 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 
 | Role | Description |
 |------|-------------|
-| [`alloy`](roles/alloy/) | Grafana Alloy observability agent for Docker Swarm |
+| [`alloy`](roles/alloy/) | Grafana Alloy observability agent for Docker Swarm — can also pull-scrape native exporters on other hosts via `alloy_extra_scrape_targets` |
+| [`node_exporter`](roles/node_exporter/) | Prometheus node_exporter, native distro package (no Docker) |
 
 ### Applications (per-app roles, replacing docker_stacks)
 

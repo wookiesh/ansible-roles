@@ -60,6 +60,15 @@ alloy_traefik_log_path: "{{ traefik_access_log_path }}"
 - `alloy_grafana_cloud_prometheus_username`: Prometheus numeric user ID
 - `alloy_traefik_metrics_port`: Traefik metrics port (default: `8899`)
 - `alloy_scrape_interval`: Prometheus scrape interval (default: `30s`)
+- `alloy_extra_scrape_targets`: Additional static Prometheus scrape targets, remote-written to the same endpoint (default: `[]`). For hosts this Alloy instance doesn't run on — e.g. non-Docker hosts running native exporters (`node_exporter`, etc.) — Alloy pulls from them over the network instead of needing an agent there. Requires `alloy_metrics_enabled: true`.
+  ```yaml
+  alloy_extra_scrape_targets:
+    - job_name: "smtp_relay_node"
+      targets:
+        - { address: "10.219.206.10:9100", instance: "ana-relay-postfix-01" }
+        - { address: "10.219.206.11:9100", instance: "ana-relay-postfix-02" }
+      # scrape_interval: "30s"  # optional, defaults to alloy_scrape_interval
+  ```
 
 ### Traefik log collection
 

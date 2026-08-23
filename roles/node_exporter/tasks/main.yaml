@@ -1,0 +1,7 @@
+---
+- name: Install Prometheus node_exporter
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: true
+  become: true

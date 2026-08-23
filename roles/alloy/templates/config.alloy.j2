@@ -80,6 +80,24 @@ prometheus.scrape "traefik" {
   forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
 
+{% endif %}
+{% if alloy_metrics_enabled and alloy_extra_scrape_targets | length > 0 %}
+// --- Extra remote scrape targets (native exporters on non-Docker hosts) ---
+
+{% for scrape in alloy_extra_scrape_targets %}
+prometheus.scrape "{{ scrape.job_name }}" {
+  targets = [
+{% for target in scrape.targets %}
+    {"__address__" = "{{ target.address }}", "instance" = "{{ target.instance | default(target.address) }}"},
+{% endfor %}
+  ]
+  scrape_interval = "{{ scrape.scrape_interval | default(alloy_scrape_interval) }}"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+{% endfor %}
+{% endif %}
+{% if alloy_metrics_enabled %}
 prometheus.remote_write "grafana_cloud" {
   endpoint {
     url = "{{ alloy_grafana_cloud_prometheus_url }}"

@@ -93,6 +93,12 @@ smtp_hard_error_limit: 5
 smtp_error_sleep_time: "10s"
 smtp_message_size_limit: 26214400 # 25MB
 
+# Postfix Prometheus exporter (opt-in, independent of the mode above).
+# Installs prometheus-postfix-exporter and points it at a private rsyslog-fed
+# log file rather than the package's systemd/journal default — see
+# tasks/exporter.yaml for why the journal-based default doesn't work here.
+smtp_exporter_enabled: false
+
 # Relay Configuration Files
 smtp_relay_config_files:
   - src: "header_checks.j2"
