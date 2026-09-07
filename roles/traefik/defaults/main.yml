@@ -23,6 +23,11 @@ traefik_network_attachable: "{{ traefik_deployment_mode == 'swarm' }}"
 # Traefik port mode configuration
 traefik_port_mode: "ingress" # host or ingress (default: ingress)
 
+# Middlewares (must be defined in traefik_dynamic_config) to attach to the
+# dashboard/API router. Empty by default -- the router otherwise ships with
+# no restriction at all, which is a real exposure on any host with a public IP.
+traefik_dashboard_middlewares: []
+
 # Traefik additional services
 traefik_whoami_enabled: true
 traefik_whoami_domain: "whoami.{{ traefik_domain | regex_replace('^traefik\\.', '') }}"

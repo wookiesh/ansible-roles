@@ -67,6 +67,9 @@ services:
       - traefik.enable=true
       - traefik.http.routers.traefik.rule=Host(`{{ traefik_domain }}`)
       - traefik.http.routers.traefik.service=api@internal
+{% if traefik_dashboard_middlewares %}
+      - traefik.http.routers.traefik.middlewares={{ traefik_dashboard_middlewares | map('regex_replace', '$', '@file') | join(',') }}
+{% endif %}
 {% if traefik_static_config.certificatesResolvers is defined %}
       - traefik.http.routers.traefik.tls.certresolver={{ traefik_static_config.certificatesResolvers | first }}
 {% else %}
