@@ -168,6 +168,7 @@
   register: tailscale_status_check
   failed_when: false
   changed_when: false
+  check_mode: false
   when: tailscale_enabled
 
 - name: Set authentication facts
@@ -195,7 +196,7 @@
     - tailscale_status_check.rc == 0
 
 - name: Authenticate with Tailscale (authkey)
-  ansible.builtin.command: tailscale up --authkey={{ tailscale_auth_key }}
+  ansible.builtin.command: tailscale up --hostname={{ tailscale_hostname }}
   environment:
     TS_AUTHKEY: "{{ tailscale_auth_key }}"
   register: tailscale_auth_result
@@ -203,6 +204,7 @@
   retries: 3
   delay: 10
   until: tailscale_auth_result is succeeded
+  no_log: true
   when:
     - tailscale_enabled
     - tailscale_needs_auth
@@ -241,6 +243,8 @@
     --exit-node-allow-lan-access={{ tailscale_exit_node_allow_lan_access | ternary('true', 'false') }}
     --accept-dns={{ tailscale_accept_dns | ternary('true', 'false') }}
     --advertise-tags={{ tailscale_tags | join(',') if tailscale_tags else '' }}
+    --ssh={{ tailscale_ssh_enabled | ternary('true', 'false') }}
+    --hostname={{ tailscale_hostname }}
     --reset={{ tailscale_reset | ternary('true', 'false') }}
   register: tailscale_network_config
   changed_when: tailscale_network_config.rc == 0
@@ -268,6 +272,8 @@
   ansible.builtin.command: tailscale status --json
   register: tailscale_status_json
   changed_when: false
+  failed_when: false
+  check_mode: false
   when: tailscale_enabled
 
 - name: Display Tailscale status

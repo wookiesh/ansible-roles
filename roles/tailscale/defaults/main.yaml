@@ -12,6 +12,13 @@ tailscale_oauth_client_secret: "{{ vault_tailscale_oauth_client_secret | default
 tailscale_auth_timeout: 300
 
 # Network Configuration
+# A Tailscale MagicDNS hostname identical to a host's LAN short hostname
+# makes unqualified name lookups (ping, dig, host) on tailnet-joined clients
+# ambiguous between the LAN resolver and 100.100.100.100, which can resolve
+# to the tailnet IP with no working return path. Defaults to the system
+# hostname for backward compat with hosts already joined under that name;
+# override per-host (e.g. host_vars) when the LAN hostname collides.
+tailscale_hostname: "{{ inventory_hostname }}"
 tailscale_advertise_routes: []
 tailscale_accept_routes: false
 tailscale_advertise_exit_node: false
