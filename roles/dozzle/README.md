@@ -1,6 +1,8 @@
 # Dozzle Role
 
-Deploys [Dozzle](https://dozzle.dev) — a real-time Docker log viewer.
+> **DEPRECATED**, Migrated to Komodo Stacks (`dozzle` hub + `dozzle-agent-*`, `homelab-docker-stacks` repo, 2026-09-09). This role will be removed once confirmed unused elsewhere.
+
+Deploys [Dozzle](https://dozzle.dev), a real-time Docker log viewer.
 
 Supports two modes controlled per-host by `dozzle_agent_mode`:
 
@@ -30,7 +32,7 @@ Supports two modes controlled per-host by `dozzle_agent_mode`:
 ```yaml
 dozzle_agents:
   - name: dns01          # display name (used by DOZZLE_HOSTNAME on the agent)
-    addr: "10.0.0.3:7007"  # bare ip:port — name@ip:port breaks gRPC resolver
+    addr: "10.0.0.3:7007"  # bare ip:port, name@ip:port breaks gRPC resolver
 ```
 
 > **Note:** Use bare `ip:port` format. The `name@ip:port` format causes a gRPC resolver error in Dozzle v10+. Display names come from `DOZZLE_HOSTNAME` set on each agent.

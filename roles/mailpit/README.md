@@ -1,6 +1,8 @@
 # Mailpit Role
 
-Deploys [Mailpit](https://mailpit.axllent.org) — an SMTP catch-all and email testing tool with a web UI.
+> **DEPRECATED**, Migrated to a Komodo Stack (`mailpit`, `homelab-docker-stacks` repo, 2026-09-08). This role will be removed once confirmed unused elsewhere.
+
+Deploys [Mailpit](https://mailpit.axllent.org), an SMTP catch-all and email testing tool with a web UI.
 
 ## Requirements
 
@@ -39,9 +41,9 @@ mailpit_domain: "mailpit.lan.miom.be"
 
 ## Ports
 
-- **SMTP**: `mailpit_smtp_port` (default 1025) — exposed on the host, used by services sending mail
-- **Web UI**: 8025 — served by Traefik at `mailpit_domain`
-- **POP3**: 1110 — not exposed (not used)
+- **SMTP**: `mailpit_smtp_port` (default 1025), exposed on the host, used by services sending mail
+- **Web UI**: 8025, served by Traefik at `mailpit_domain`
+- **POP3**: 1110, not exposed (not used)
 
 ## Tags
 

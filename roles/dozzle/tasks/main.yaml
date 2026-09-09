@@ -1,4 +1,7 @@
 ---
+# DEPRECATED, migrated to Komodo Stacks (dozzle hub + dozzle-agent-*, homelab-docker-stacks repo).
+# This role will be removed once confirmed unused elsewhere.
+
 - name: Import Dozzle installation tasks
   ansible.builtin.import_tasks: install.yaml
 

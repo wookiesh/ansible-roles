@@ -5,7 +5,7 @@ Designed to be consumed by multiple projects via `requirements.yml`.
 
 ## Roles
 
-Roles have no `xxx_enabled` gate flag — they run unconditionally when assigned.
+Roles have no `xxx_enabled` gate flag, they run unconditionally when assigned.
 Use `hosts:` in your playbook to control which hosts a role runs on.
 
 ### Infrastructure
@@ -23,7 +23,7 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 | [`smtp`](roles/smtp/) | Configure Postfix as null client, relay host, or sender-dependent multi-relay smart-host |
 | [`ssh`](roles/ssh/) | Harden SSH server configuration |
 | [`ssh_config_gen`](roles/ssh_config_gen/) | Generate `~/.ssh/config` entries from Ansible inventory |
-| [`tailscale`](roles/tailscale/) | Install and configure Tailscale VPN (`tailscale_enabled` flag kept — no hosts yet) |
+| [`tailscale`](roles/tailscale/) | Install and configure Tailscale VPN (`tailscale_enabled` flag kept, no hosts yet) |
 | [`traefik`](roles/traefik/) | Traefik reverse proxy for Docker containers and Swarm |
 
 ### Observability
@@ -31,24 +31,24 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 | Role | Description |
 |------|-------------|
 | [`alloy`](roles/alloy/) | Grafana Alloy observability agent for Docker Swarm |
-| [`alloy_native`](roles/alloy_native/) | Grafana Alloy, native distro package (no Docker) — metrics + log shipping for non-Docker hosts |
+| [`alloy_native`](roles/alloy_native/) | Grafana Alloy, native distro package (no Docker), metrics + log shipping for non-Docker hosts |
 | [`node_exporter`](roles/node_exporter/) | Prometheus node_exporter, native distro package (no Docker) |
 
 ### Applications (per-app roles, replacing docker_stacks)
 
 | Role | Description |
 |------|-------------|
-| [`portainer`](roles/portainer/) | Portainer CE management UI — compose or swarm stack, auto-detected |
-| [`beszel`](roles/beszel/) | Beszel monitoring hub — compose or swarm stack, auto-detected |
-| [`uptimekuma`](roles/uptimekuma/) | Uptime Kuma status page — compose or swarm stack, auto-detected |
-| [`dozzle`](roles/dozzle/) | Dozzle log viewer — central + remote agent mode, Traefik-integrated |
-| [`mailpit`](roles/mailpit/) | Mailpit SMTP catch-all for dev/testing — compose, Traefik-integrated |
-| [`dns_server`](roles/dns_server/) | Technitium DNS server — compose mode |
-| [`docker_stacks`](roles/docker_stacks/) | ~~DEPRECATED~~ — replaced by per-app roles above |
+| [`portainer`](roles/portainer/) | Portainer CE management UI, compose or swarm stack, auto-detected |
+| [`beszel`](roles/beszel/) | Beszel monitoring hub, compose or swarm stack, auto-detected |
+| [`uptimekuma`](roles/uptimekuma/) | Uptime Kuma status page, compose or swarm stack, auto-detected |
+| [`dozzle`](roles/dozzle/) | ~~DEPRECATED~~, migrated to Komodo Stacks |
+| [`mailpit`](roles/mailpit/) | ~~DEPRECATED~~, migrated to a Komodo Stack |
+| [`dns_server`](roles/dns_server/) | Technitium DNS server, compose mode |
+| [`docker_stacks`](roles/docker_stacks/) | ~~DEPRECATED~~, replaced by per-app roles above |
 
 ## Usage
 
-### Option A — `ansible.cfg` (local clone)
+### Option A, `ansible.cfg` (local clone)
 
 Clone this repo alongside your project and point `roles_path` at it:
 
@@ -60,7 +60,7 @@ roles_path = ../ansible-roles/roles
 
 Roles are available immediately with no install step. Useful for active development or monorepo-style layouts.
 
-### Option B — `requirements.yml` (pinned version)
+### Option B, `requirements.yml` (pinned version)
 
 ```yaml
 roles:
