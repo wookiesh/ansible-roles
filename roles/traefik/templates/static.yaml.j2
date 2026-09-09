@@ -1,1 +1,2 @@
-{{ traefik_static_config | to_nice_yaml }}
+{% set _default_access_log = {'accessLog': {'filePath': traefik_access_log_path ~ '/access.log', 'format': 'json'}} if traefik_access_log_path | default('') | length > 0 else {} %}
+{{ _default_access_log | combine(traefik_static_config, recursive=true) | to_nice_yaml }}

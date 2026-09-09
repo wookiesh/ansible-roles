@@ -144,16 +144,9 @@ This single variable enables:
 - Host directory creation at the specified path
 - Bind mount into the container (same path inside and outside)
 - Logrotate configuration at `/etc/logrotate.d/traefik`
+- An `accessLog: {filePath: "<path>/access.log", format: json}` block, merged automatically into the static config, no need to set it yourself in `traefik_static_config`. Set it explicitly there only if you want to override the default (e.g. a different format).
 
-**2. Add `accessLog` to your `traefik_static_config`:**
-```yaml
-traefik_static_config:
-  accessLog:
-    filePath: "{{ traefik_access_log_path }}/access.log"
-    format: json
-```
-
-Logrotate uses `copytruncate` — no signal to the container needed.
+Logrotate uses `copytruncate`, no signal to the container needed.
 
 **Logrotate defaults** (override in host_vars as needed):
 - `traefik_log_rotate_frequency`: `daily`
