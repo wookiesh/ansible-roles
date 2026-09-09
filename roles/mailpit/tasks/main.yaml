@@ -2,5 +2,12 @@
 # DEPRECATED, migrated to a Komodo Stack (mailpit, homelab-docker-stacks repo).
 # This role will be removed once confirmed unused elsewhere.
 
+- name: Warn that this role is deprecated
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️  DEPRECATED ROLE: 'mailpit' is migrated to a Komodo Stack
+      (mailpit, homelab-docker-stacks repo).
+      This role will be removed once confirmed unused elsewhere.
+
 - name: Import Mailpit installation tasks
   ansible.builtin.import_tasks: install.yaml
