@@ -7,7 +7,9 @@
 # HOSTNAME MANAGEMENT
 # -----------------------------------------------------------------------------
 - name: Manage system hostname
-  when: server_hostname_manage
+  when:
+    - server_hostname_manage
+    - ansible_facts['os_family'] == 'Debian'
   block:
     - name: Display hostname configuration
       ansible.builtin.debug:
@@ -52,7 +54,9 @@
 # AUTOMATIC UPDATES CONFIGURATION
 # -----------------------------------------------------------------------------
 - name: Configure automatic updates
-  when: server_automatic_updates_enabled
+  when:
+    - server_automatic_updates_enabled
+    - ansible_facts['os_family'] == 'Debian'
   block:
     - name: Install unattended-upgrades package
       ansible.builtin.package:
@@ -70,6 +74,16 @@
       become: true
       notify: Restart unattended-upgrades
 
+    - name: Configure unattended-upgrades origins, blacklist and reboot policy
+      ansible.builtin.template:
+        src: 50unattended-upgrades.j2
+        dest: "{{ server_unattended_upgrades_config_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify: Restart unattended-upgrades
+
     - name: Enable and start automatic updates service
       ansible.builtin.systemd:
         name: unattended-upgrades
@@ -81,7 +95,9 @@
 # APTICRON NOTIFICATIONS
 # -----------------------------------------------------------------------------
 - name: Configure apticron notifications
-  when: server_apticron_enabled
+  when:
+    - server_apticron_enabled
+    - ansible_facts['os_family'] == 'Debian'
   block:
     - name: Install apticron package
       ansible.builtin.package:
@@ -125,6 +141,7 @@
     group: root
     mode: "0644"
   become: true
+  when: ansible_facts['os_family'] == 'Debian'
 
 # -----------------------------------------------------------------------------
 # JOURNALD SIZE LIMIT
@@ -137,6 +154,7 @@
     group: root
     mode: "0755"
   become: true
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Configure journald size limit
   ansible.builtin.copy:
@@ -148,6 +166,7 @@
     group: root
     mode: "0644"
   become: true
+  when: ansible_facts['os_family'] == 'Debian'
   notify: Restart systemd-journald
 
 # -----------------------------------------------------------------------------

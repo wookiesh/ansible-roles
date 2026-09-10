@@ -7,6 +7,20 @@ server_hostname_fqdn: "{{ inventory_hostname if '.' in inventory_hostname else i
 # Automatic Updates
 server_automatic_updates_enabled: true
 server_auto_update_config_file: "/etc/apt/apt.conf.d/20auto-upgrades"
+server_unattended_upgrades_config_file: "/etc/apt/apt.conf.d/50unattended-upgrades"
+# Also allow the "-updates" pocket (Ubuntu) / suite (Debian), not just
+# security. Without this, non-security bugfix updates (e.g. python3-distupgrade,
+# ubuntu-release-upgrader-core) never auto-install and just pile up forever.
+# Package origin/label filtering (Debian: label=Debian/Debian-Security) already
+# keeps vendor-specific repos out (e.g. Proxmox's own packages on pve/pbs),
+# so this is safe to leave on for proxmox_nodes too.
+server_unattended_upgrades_include_updates: true
+# Python regexes of package names to never auto-upgrade (mirrors the
+# "force manual review" pattern used for risky bumps in the Renovate config)
+server_unattended_upgrades_blacklist: []
+server_unattended_upgrades_automatic_reboot: false
+server_unattended_upgrades_automatic_reboot_with_users: false
+server_unattended_upgrades_automatic_reboot_time: "03:00"
 
 # Apticron Notifications
 server_apticron_enabled: false

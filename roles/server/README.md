@@ -18,7 +18,13 @@
 
 ### Automatic Updates
 - `server_automatic_updates_enabled`: Enable unattended upgrades (default: true)
-- `server_auto_update_config_file`: Path to config file (default: `/etc/apt/apt.conf.d/20auto-upgrades`)
+- `server_auto_update_config_file`: Path to periodic-schedule config file (default: `/etc/apt/apt.conf.d/20auto-upgrades`)
+- `server_unattended_upgrades_config_file`: Path to origins/blacklist/reboot config file (default: `/etc/apt/apt.conf.d/50unattended-upgrades`)
+- `server_unattended_upgrades_include_updates`: Also auto-install from the `-updates` pocket/suite, not just security (default: true). Distro-aware template (Ubuntu `Allowed-Origins` vs Debian `Origins-Pattern`); on Debian-based hosts running Proxmox (pve/pbs), Proxmox's own packages are never matched regardless of this setting since they come from a different origin/label.
+- `server_unattended_upgrades_blacklist`: List of package-name regexes to always exclude from auto-upgrade (default: `[]`)
+- `server_unattended_upgrades_automatic_reboot`: Reboot automatically when an upgrade requires it (default: false)
+- `server_unattended_upgrades_automatic_reboot_with_users`: Allow that automatic reboot even if users are logged in (default: false)
+- `server_unattended_upgrades_automatic_reboot_time`: Time of day for the automatic reboot, local time (default: `03:00`)
 
 ### Apticron Notifications
 - `server_apticron_enabled`: Enable apticron notifications (default: true)
