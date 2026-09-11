@@ -7,7 +7,7 @@ Creates and configures admin users on managed hosts from a list defined in inven
 - Creates multiple admin users in a single role invocation
 - Fetches SSH public keys from any git provider that exposes `/<username>.keys`
 - Configures `pam_ssh_agent_auth` for passwordless sudo authenticated via SSH key
-- Disabled by default — opt-in per group/host via `create_admin_users_enabled`
+- Disabled by default, opt-in per group/host via `create_admin_users_enabled`
 
 ## Requirements
 
@@ -35,6 +35,11 @@ create_admin_users_list:
     full_name: Alice        # optional, sets GECOS field in /etc/passwd
     groups: [sudo, docker]
     shell: /bin/zsh         # optional, overrides create_admin_users_shell
+    password_hash: "$6$..." # optional, crypted password (mkpasswd/ansible.builtin.password_hash),
+                             # for accounts that need classic sudo (pam_unix) instead of the
+                             # pam_ssh_agent_auth mechanism below, e.g. non-interactive
+                             # automation users with no SSH agent to forward. Omitted by
+                             # default (account stays locked/keys-only).
 ```
 
 ## Sudo authentication
@@ -49,9 +54,9 @@ Users can then run `sudo` without a password as long as their SSH agent is forwa
 
 **Client requirement**: `ForwardAgent yes` in `~/.ssh/config` for the relevant hosts, or `-A` flag when connecting.
 
-**`use_pty` is required, not optional, for Ansible automation**: `pam_ssh_agent_auth` needs a real controlling terminal to do its challenge. Ansible's own SSH connections never allocate one — especially with `pipelining = True` in `ansible.cfg`, which explicitly disables pty allocation for performance — so any `become: true` task that actually needs to change something (not just verify already-satisfied state) fails with `Missing sudo password` under Ansible, even though the same user's own interactive SSH session works fine (a real terminal already has a pty). `Defaults use_pty` makes `sudo` allocate its own pty for the command it runs, satisfying the PAM module regardless of whether the *connection* itself had one.
+**`use_pty` is required, not optional, for Ansible automation**: `pam_ssh_agent_auth` needs a real controlling terminal to do its challenge. Ansible's own SSH connections never allocate one, especially with `pipelining = True` in `ansible.cfg`, which explicitly disables pty allocation for performance, so any `become: true` task that actually needs to change something (not just verify already-satisfied state) fails with `Missing sudo password` under Ansible, even though the same user's own interactive SSH session works fine (a real terminal already has a pty). `Defaults use_pty` makes `sudo` allocate its own pty for the command it runs, satisfying the PAM module regardless of whether the *connection* itself had one.
 
-> **Note**: SSH agent forwarding is safe in this setup because connections go through Tailscale or VPN — the exit node only sees encrypted Tailscale traffic and cannot access the agent socket.
+> **Note**: SSH agent forwarding is safe in this setup because connections go through Tailscale or VPN, the exit node only sees encrypted Tailscale traffic and cannot access the agent socket.
 
 ## Usage
 
