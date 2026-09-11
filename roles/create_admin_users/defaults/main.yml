@@ -6,7 +6,11 @@ create_admin_users_default_groups:
 
 create_admin_users_pam_sudo_enabled: true
 
-# List of admin users to create — define in inventory, not here
+# Owned by the ssh role, defaulted here too since role defaults from another
+# role aren't reliably loaded when that role's own tasks are tag-filtered out.
+ssh_pikvm_mode: false
+
+# List of admin users to create, define in inventory, not here
 # create_admin_users_list:
 #   - name: alice             # Linux username
 #     git_user: jpn           # username on the git provider
