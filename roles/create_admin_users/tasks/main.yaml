@@ -4,11 +4,13 @@
     name: sudo
     state: present
   become: true
+  when: not ssh_pikvm_mode
 
 - name: Gather existing groups
   ansible.builtin.getent:
     database: group
   become: true
+  when: not ssh_pikvm_mode
 
 - name: Create admin users
   ansible.builtin.user:
@@ -23,6 +25,7 @@
   loop_control:
     label: "{{ item.name }}"
   become: true
+  when: not ssh_pikvm_mode
 
 - name: Ensure .ssh directory exists for each user
   ansible.builtin.file:
@@ -35,6 +38,7 @@
   loop_control:
     label: "{{ item.name }}"
   become: true
+  when: not ssh_pikvm_mode
 
 - name: Fetch SSH keys from git provider
   ansible.builtin.uri:
@@ -48,6 +52,7 @@
   become: false
   run_once: true
   check_mode: false
+  when: not ssh_pikvm_mode
 
 - name: Authorize SSH keys
   ansible.posix.authorized_key:
@@ -59,7 +64,8 @@
   loop_control:
     label: "{{ item.item.name }}"
   become: true
+  when: not ssh_pikvm_mode
 
 - name: Configure passwordless sudo via SSH agent auth
   ansible.builtin.include_tasks: pam_sudo.yaml
-  when: create_admin_users_pam_sudo_enabled
+  when: create_admin_users_pam_sudo_enabled and not ssh_pikvm_mode
