@@ -45,6 +45,7 @@
   loop_control:
     label: "{{ item.git_user }}"
   delegate_to: localhost
+  become: false
   run_once: true
   check_mode: false
 
