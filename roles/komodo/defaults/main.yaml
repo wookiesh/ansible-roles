@@ -1,0 +1,36 @@
+---
+komodo_image_tag: "2"
+komodo_mongo_image: "mongo:7"
+
+komodo_install_dir: "{{ docker_host_services_root | default('/opt/docker') }}/komodo"
+komodo_network: "{{ traefik_network_name | default('traefik_public') }}"
+komodo_domain: "komodo.{{ server_domain }}"
+komodo_timezone: "Europe/Brussels"
+
+# 'core' on exactly one host (the central server), 'periphery' everywhere else
+komodo_mode: "periphery"
+# Inventory hostname of the 'core' host, used by periphery hosts to delegate onboarding-key creation
+komodo_core_host: "vm-docker"
+
+komodo_db_username: "komodo"
+komodo_db_password: "{{ vault_komodo_db_password }}"
+komodo_admin_username: "admin"
+komodo_admin_password: "{{ vault_komodo_admin_password }}"
+komodo_webhook_secret: "{{ vault_komodo_webhook_secret }}"
+komodo_jwt_secret: "{{ vault_komodo_jwt_secret }}"
+
+# OIDC login via Authentik. Provider/Application created manually in Authentik
+# (redirect URI: https://{{ komodo_domain }}/auth/oidc/callback).
+komodo_oidc_enabled: true
+komodo_oidc_provider: "https://auth.miom.be/application/o/komodo/"
+komodo_oidc_client_id: "0hhSJZXzXqXTheCDZQMqV9iDtihDIiG2eaCQUlIK"
+komodo_oidc_client_secret: "{{ vault_komodo_oidc_client_secret }}"
+komodo_oidc_use_full_email: true
+
+# Root directory Periphery uses for stacks/repos/builds it manages on this host.
+# Must be identical inside and outside the container (see moghtech/komodo#180).
+komodo_periphery_root_directory: "/etc/komodo"
+
+# Optional custom DNS servers for the Periphery container (Docker Compose `dns:`
+# key). Empty by default (container follows the host's normal resolver).
+komodo_periphery_dns: []

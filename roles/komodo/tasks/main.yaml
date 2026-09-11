@@ -1,0 +1,8 @@
+---
+- name: Import Komodo core tasks
+  ansible.builtin.import_tasks: core.yaml
+  when: komodo_mode == "core"
+
+- name: Import Komodo periphery tasks
+  ansible.builtin.import_tasks: periphery.yaml
+  when: komodo_mode == "periphery"

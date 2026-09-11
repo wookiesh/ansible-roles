@@ -1,0 +1,4 @@
+---
+# No handlers needed: compose is compose-only (no swarm branch), deploy runs
+# unconditionally via community.docker.docker_compose_v2 in tasks/core.yaml
+# and tasks/periphery.yaml.

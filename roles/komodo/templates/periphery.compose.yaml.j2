@@ -1,0 +1,28 @@
+services:
+  periphery:
+    image: ghcr.io/moghtech/komodo-periphery:{{ komodo_image_tag }}
+    init: true
+    restart: unless-stopped
+{% if komodo_periphery_dns is defined and komodo_periphery_dns %}
+    dns:
+{% for ns in komodo_periphery_dns %}
+      - {{ ns }}
+{% endfor %}
+{% endif %}
+    volumes:
+      - keys:/config/keys
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - {{ komodo_periphery_root_directory }}:{{ komodo_periphery_root_directory }}
+    environment:
+      PERIPHERY_CORE_ADDRESS: https://{{ komodo_domain }}
+      PERIPHERY_CONNECT_AS: "{{ inventory_hostname }}"
+{% if komodo_periphery_onboarding_key is defined and komodo_periphery_onboarding_key %}
+      PERIPHERY_ONBOARDING_KEY: "{{ komodo_periphery_onboarding_key }}"
+{% endif %}
+      PERIPHERY_ROOT_DIRECTORY: "{{ komodo_periphery_root_directory }}"
+    labels:
+      - komodo.skip=
+
+volumes:
+  keys:

@@ -1,0 +1,66 @@
+---
+- name: Log in to Komodo Core as admin (delegated to {{ komodo_core_host }})
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9120/auth/login/LoginLocalUser"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ komodo_admin_username }}"
+      password: "{{ komodo_admin_password }}"
+    status_code: [200]
+  register: komodo_login
+  delegate_to: "{{ komodo_core_host }}"
+  retries: 5
+  delay: 3
+  until: komodo_login.status == 200
+  when: not ansible_check_mode
+
+- name: Create onboarding key for this host (delegated to {{ komodo_core_host }})
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9120/write/CreateOnboardingKey"
+    method: POST
+    body_format: json
+    headers:
+      authorization: "{{ komodo_login.json.data.jwt }}"
+    body:
+      name: "{{ inventory_hostname }}"
+      expires: 0
+    status_code: [200]
+  register: komodo_onboarding
+  delegate_to: "{{ komodo_core_host }}"
+  when: not ansible_check_mode
+
+- name: Create Komodo install directory
+  ansible.builtin.file:
+    path: "{{ komodo_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Create Komodo Periphery root directory
+  ansible.builtin.file:
+    path: "{{ komodo_periphery_root_directory }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Deploy Komodo Periphery compose file
+  ansible.builtin.template:
+    src: periphery.compose.yaml.j2
+    dest: "{{ komodo_install_dir }}/compose.yaml"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+  vars:
+    komodo_periphery_onboarding_key: "{{ komodo_onboarding.json.private_key | default('') }}"
+
+- name: Deploy Komodo Periphery
+  community.docker.docker_compose_v2:
+    project_src: "{{ komodo_install_dir }}"
+    state: present
+  when: not ansible_check_mode

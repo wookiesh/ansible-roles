@@ -1,0 +1,43 @@
+---
+- name: Create Komodo install directory
+  ansible.builtin.file:
+    path: "{{ komodo_install_dir }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Create Komodo Periphery root directory
+  ansible.builtin.file:
+    path: "{{ komodo_periphery_root_directory }}"
+    state: directory
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "2775"
+  become: true
+
+- name: Deploy Komodo Core compose file
+  ansible.builtin.template:
+    src: core.compose.yaml.j2
+    dest: "{{ komodo_install_dir }}/compose.yaml"
+    owner: root
+    group: "{{ docker_host_services_group | default('docker') }}"
+    mode: "0640"
+  become: true
+
+- name: Deploy Komodo Core (mongo + core + local periphery)
+  community.docker.docker_compose_v2:
+    project_src: "{{ komodo_install_dir }}"
+    state: present
+  when: not ansible_check_mode
+
+- name: Wait for Komodo Core API to be reachable
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9120/version"
+    status_code: [200]
+  register: komodo_core_health
+  until: komodo_core_health.status == 200
+  retries: 20
+  delay: 3
+  when: not ansible_check_mode
