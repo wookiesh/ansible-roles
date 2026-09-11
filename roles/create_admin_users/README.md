@@ -7,7 +7,8 @@ Creates and configures admin users on managed hosts from a list defined in inven
 - Creates multiple admin users in a single role invocation
 - Fetches SSH public keys from any git provider that exposes `/<username>.keys`
 - Configures `pam_ssh_agent_auth` for passwordless sudo authenticated via SSH key
-- Disabled by default, opt-in per group/host via `create_admin_users_enabled`
+- No enable/disable gate variable, the role runs unconditionally when assigned to a play/host, same as every other role in this collection; control scope via `hosts:`/tags, not a flag
+- Skips all its tasks on hosts with `ssh_pikvm_mode: true` (read-only rootfs appliances like PiKVM, same flag the `ssh` role already uses)
 
 ## Requirements
 
@@ -19,11 +20,11 @@ Creates and configures admin users on managed hosts from a list defined in inven
 
 | Variable                              | Default     | Description                              |
 | ------------------------------------- | ----------- | ---------------------------------------- |
-| `create_admin_users_enabled`          | `false`     | Enable/disable the role                  |
 | `create_admin_users_git_url`          | `""`        | Git provider base URL (required)         |
 | `create_admin_users_shell`            | `/bin/bash` | Default shell for created users          |
 | `create_admin_users_default_groups`   | `[sudo]`    | Default groups if not specified per user |
 | `create_admin_users_pam_sudo_enabled` | `true`      | Configure pam_ssh_agent_auth for sudo    |
+| `ssh_pikvm_mode`                      | `false`     | Skip all tasks (read-only rootfs appliance); owned by the `ssh` role, redeclared here since role defaults from another role aren't reliably loaded when that role's own tasks are tag-filtered out |
 | `create_admin_users_list`             | `[]`        | List of users to create (see below)      |
 
 ### User list format

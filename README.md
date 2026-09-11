@@ -38,6 +38,7 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 
 | Role | Description |
 |------|-------------|
+| [`komodo`](roles/komodo/) | Komodo Core/Periphery deployment |
 | [`portainer`](roles/portainer/) | Portainer CE management UI, compose or swarm stack, auto-detected |
 | [`beszel`](roles/beszel/) | Beszel monitoring hub, compose or swarm stack, auto-detected |
 | [`uptimekuma`](roles/uptimekuma/) | Uptime Kuma status page, compose or swarm stack, auto-detected |
@@ -73,6 +74,20 @@ roles:
 ```bash
 ansible-galaxy install -r requirements.yml
 ```
+
+### Option C, git submodule
+
+```bash
+git submodule add https://github.com/wookiesh/ansible-roles.git ansible-roles
+```
+
+Gives a pinned, committed reference (like Option B) while keeping the roles
+readable/editable in place (like Option A). This is how `homelab` consumes
+this repo. `roles_path` relative paths resolve relative to `ansible.cfg`'s
+own directory, not to the submodule's location, set `ANSIBLE_ROLES_PATH`
+explicitly instead if the consuming project's `ansible.cfg` isn't sitting
+right next to the submodule (e.g. on a CI/runner with no matching sibling
+clone).
 
 ## Versioning
 
