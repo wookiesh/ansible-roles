@@ -1,7 +1,7 @@
 Include config.d/*
 
 Host *
-StrictHostKeyChecking yes
+StrictHostKeyChecking {{ ssh_config_gen_strict_host_key_checking }}
 ServerAliveInterval 300
 ServerAliveCountMax 2
 ControlMaster auto
