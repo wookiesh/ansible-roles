@@ -3,6 +3,10 @@
   ansible.builtin.import_tasks: server.yml
   when: ssh_install_server
 
+- name: Apply pending SSH/fail2ban restarts before validating
+  ansible.builtin.meta: flush_handlers
+  when: ssh_install_server
+
 - name: Configure SSH client
   ansible.builtin.import_tasks: client.yml
   become: false

@@ -29,6 +29,7 @@
     host: "{{ ansible_default_ipv4.address | default(ansible_host) }}"
     timeout: 10
   delegate_to: localhost
+  become: false
 
 - name: Check fail2ban SSH jail status
   ansible.builtin.command:
