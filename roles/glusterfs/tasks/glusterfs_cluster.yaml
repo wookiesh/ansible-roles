@@ -101,6 +101,16 @@
   run_once: true
   when: inventory_hostname == groups[glusterfs_group_name][0]
 
+- name: Check if volume is already mounted
+  ansible.builtin.command: mountpoint -q {{ glusterfs_mount_dir }}
+  register: glusterfs_mount_check
+  changed_when: false
+  failed_when: false
+
+# Only before the first mount: once mounted, the directory is the root of the shared
+# volume (same inode for every node), so its owner/mode is set once by
+# "Set volume root group ownership" below. Setting it here too made the two tasks
+# flip-flop the shared root on every run.
 - name: Create mount point directory
   ansible.builtin.file:
     path: "{{ glusterfs_mount_dir }}"
@@ -109,12 +119,7 @@
     owner: root
     group: root
   become: true
-
-- name: Check if volume is already mounted
-  ansible.builtin.command: mountpoint -q {{ glusterfs_mount_dir }}
-  register: glusterfs_mount_check
-  changed_when: false
-  failed_when: false
+  when: glusterfs_mount_check.rc != 0
 
 - name: Mount GlusterFS volume
   ansible.posix.mount:
@@ -130,10 +135,13 @@
   ansible.builtin.lineinfile:
     path: /etc/fstab
     regexp: "^{{ glusterfs_bind_address }}:{{ glusterfs_volume_name }}"
+    # The options field must stay on a single line: a folded line break here would
+    # insert a space and split the fstab field (mount then fails at boot).
     line: >-
       {{ glusterfs_bind_address }}:{{ glusterfs_volume_name }} {{ glusterfs_mount_dir }}
-      glusterfs {{ glusterfs_mount_options }},x-systemd.requires=glusterd.service,
-      x-systemd.after=glusterd.service,fetch-attempts=5,log-level=WARNING 0 0
+      glusterfs
+      {{ glusterfs_mount_options }},x-systemd.requires=glusterd.service,x-systemd.after=glusterd.service,fetch-attempts=5,log-level=WARNING
+      0 0
     state: present
     backup: "{{ glusterfs_backup_config }}"
   become: true
@@ -159,7 +167,14 @@
     mode: "0644"
   become: true
   register: glusterfs_write_test
-  notify: Cleanup test file
+  changed_when: false
+
+- name: Remove write test file
+  ansible.builtin.file:
+    path: "{{ glusterfs_mount_dir }}/.glusterfs_test"
+    state: absent
+  become: true
+  changed_when: false
 
 - name: Display mount status
   ansible.builtin.debug:

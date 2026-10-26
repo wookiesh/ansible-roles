@@ -11,10 +11,3 @@
   ansible.builtin.systemd:
     daemon_reload: true
   become: true
-
-- name: Cleanup test file
-  ansible.builtin.file:
-    path: "{{ glusterfs_mount_dir }}/.glusterfs_test"
-    state: absent
-  become: true
-  when: glusterfs_mount_verify is defined and glusterfs_mount_verify.stat.exists
