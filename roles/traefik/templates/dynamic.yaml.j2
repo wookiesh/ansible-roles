@@ -1,1 +1,13 @@
-{{ traefik_dynamic_config | to_nice_yaml }}
+{#- Traefik rejects the whole file when routers/services/... is present but empty ("routers cannot be a standalone element"), which drops every middleware and the TLS config too. Prune empty maps so a conditionally-filled routers/services dict can safely resolve to {}. -#}
+{%- set traefik_dynamic_pruned = {} -%}
+{%- for section, content in traefik_dynamic_config.items() -%}
+{%-   if section in ['http', 'tcp', 'udp'] and content is mapping -%}
+{%-     set kept = content | dict2items | rejectattr('value', 'in', [none, {}, []]) | list | items2dict -%}
+{%-     if kept -%}
+{%-       set _ = traefik_dynamic_pruned.update({section: kept}) -%}
+{%-     endif -%}
+{%-   else -%}
+{%-     set _ = traefik_dynamic_pruned.update({section: content}) -%}
+{%-   endif -%}
+{%- endfor -%}
+{{ traefik_dynamic_pruned | to_nice_yaml }}

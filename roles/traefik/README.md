@@ -72,6 +72,8 @@ The dynamic configuration is controlled by `traefik_dynamic_config` and written 
 
 Middlewares, custom routers, and external services all go here:
 
+Empty `routers`, `services` (and other empty maps) under `http`, `tcp` and `udp` are dropped when the file is rendered, since Traefik rejects the whole file otherwise. A variable that conditionally resolves to `{}` is therefore safe.
+
 ```yaml
 traefik_dynamic_config:
   http:
