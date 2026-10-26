@@ -1,0 +1,22 @@
+---
+dependencies: []
+galaxy_info:
+  author: ANA
+  description: Push the wildcard TLS certificate and key to a Linux host
+  license: MIT
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+
+  galaxy_tags:
+    - tls
+    - certificates

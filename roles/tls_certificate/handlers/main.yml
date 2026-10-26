@@ -1,0 +1,13 @@
+---
+# Reload only consumers that are running: starting a stopped service is not this role's job.
+- name: Reload TLS consumers
+  ansible.builtin.shell: |
+    if systemctl is-active --quiet {{ item }}; then systemctl reload {{ item }}; fi
+  become: true
+  changed_when: true
+  loop: "{{ tls_certificate_reload_services }}"
+
+- name: Run TLS reload commands
+  ansible.builtin.command: "{{ item }}"
+  become: true
+  loop: "{{ tls_certificate_reload_commands }}"

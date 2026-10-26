@@ -1,0 +1,51 @@
+---
+- name: Deploy TLS certificate and key
+  when: tls_certificate_deploy | bool
+  block:
+    - name: Ensure the key group exists
+      ansible.builtin.group:
+        name: "{{ tls_certificate_key_group }}"
+        system: true
+      become: true
+
+    - name: Check that the key matches the certificate
+      ansible.builtin.shell: |
+        set -o pipefail
+        a=$(printf '%s' "$CERT" | openssl x509 -noout -pubkey | sha256sum)
+        b=$(printf '%s' "$KEY" | openssl pkey -pubout | sha256sum)
+        [ "$a" = "$b" ]
+      args:
+        executable: /bin/bash
+      environment:
+        CERT: "{{ tls_certificate_cert }}"
+        KEY: "{{ tls_certificate_key }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+      run_once: true
+
+    - name: Install certificate
+      ansible.builtin.copy:
+        content: "{{ tls_certificate_cert | trim }}\n"
+        dest: "{{ tls_certificate_cert_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify:
+        - Reload TLS consumers
+        - Run TLS reload commands
+
+    - name: Install private key
+      ansible.builtin.copy:
+        content: "{{ tls_certificate_key | trim }}\n"
+        dest: "{{ tls_certificate_key_path }}"
+        owner: root
+        group: "{{ tls_certificate_key_group }}"
+        mode: "0640"
+      become: true
+      no_log: true
+      notify:
+        - Reload TLS consumers
+        - Run TLS reload commands

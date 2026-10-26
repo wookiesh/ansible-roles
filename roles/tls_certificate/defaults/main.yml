@@ -1,0 +1,21 @@
+---
+# Per-host switch: the role does nothing unless a host (or group) sets this to true.
+tls_certificate_deploy: false
+
+# PEM content. Certificate must be the leaf followed by the intermediate(s).
+tls_certificate_cert: "{{ vault_traefik_tls_cert }}"
+tls_certificate_key: "{{ vault_traefik_tls_key }}"
+
+tls_certificate_cert_path: /etc/ssl/certs/star_ana_lu.crt
+tls_certificate_key_path: /etc/ssl/private/star_ana_lu.key
+
+# Services that read the files above; reloaded (not restarted) when either file changes.
+# Example: ["nginx"]. Empty means files only, restart the consumers yourself.
+tls_certificate_reload_services: []
+
+# Commands run after the services above when a file changes, for consumers that are not a
+# plain systemd service. Example (GitLab omnibus): ["gitlab-ctl hup nginx"].
+tls_certificate_reload_commands: []
+
+# Group allowed to read the key (Debian/Ubuntu "ssl-cert"), created if missing.
+tls_certificate_key_group: ssl-cert
