@@ -47,6 +47,20 @@
         - (_current_settings.json.response.webServiceRealIpHeader | default(''))
           != dns_server_real_ip_header
 
+    # Rebuilt whenever cert.pem or key.pem is newer: a "creates:" guard kept serving the
+    # first certificate forever after a rotation.
+    - name: Check whether the DNS-over-TLS PFX is missing or older than the certificate
+      ansible.builtin.shell: >-
+        test -f {{ dns_server_tls_cert_dir }}/dot.pfx
+        && ! test {{ dns_server_tls_cert_dir }}/cert.pem -nt {{ dns_server_tls_cert_dir }}/dot.pfx
+        && ! test {{ dns_server_tls_cert_dir }}/key.pem -nt {{ dns_server_tls_cert_dir }}/dot.pfx
+      register: _dot_pfx_current
+      become: true
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: dns_server_dot_enabled | bool and dns_server_tls_cert_dir | length > 0
+
     - name: Create PFX certificate for DNS-over-TLS
       ansible.builtin.command:
         cmd: >-
@@ -55,9 +69,12 @@
           -inkey {{ dns_server_tls_cert_dir }}/key.pem
           -in {{ dns_server_tls_cert_dir }}/cert.pem
           -passout pass:
-        creates: "{{ dns_server_tls_cert_dir }}/dot.pfx"
       become: true
-      when: dns_server_dot_enabled | bool and dns_server_tls_cert_dir | length > 0
+      when:
+        - dns_server_dot_enabled | bool
+        - dns_server_tls_cert_dir | length > 0
+        - _dot_pfx_current.rc != 0
+      notify: Restart technitium
 
     - name: Enable DNS-over-TLS with certificate
       ansible.builtin.uri:
