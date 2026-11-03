@@ -1,0 +1,36 @@
+---
+# Restart containers that bind-mount docker.sock whenever the Docker daemon restarts.
+# Opt-in (docker_host_socket_refresh_enabled), see the role README.
+#
+# Installed BEFORE the role's own daemon restart (tasks/main.yaml, phase 2) so that
+# restart is covered too. The unit is only enabled, not started: it runs when
+# docker.service next starts, so applying the role never restarts containers by itself.
+
+- name: Install the docker.sock refresh script
+  ansible.builtin.template:
+    src: docker-refresh-socket-consumers.sh.j2
+    dest: "{{ docker_host_socket_refresh_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install the docker.sock refresh systemd unit
+  ansible.builtin.template:
+    src: docker-socket-refresh.service.j2
+    dest: /etc/systemd/system/docker-socket-refresh.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  register: docker_host_socket_refresh_unit
+
+# In check mode the unit file is not written, so systemd cannot find a unit that is
+# about to be created: skip only in that case, a real run always has the file by now.
+- name: Enable the docker.sock refresh unit
+  ansible.builtin.systemd:
+    name: docker-socket-refresh.service
+    enabled: true
+    daemon_reload: "{{ docker_host_socket_refresh_unit is changed }}"
+  become: true
+  when: not (ansible_check_mode and docker_host_socket_refresh_unit is changed)

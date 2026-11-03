@@ -14,7 +14,7 @@ Use `hosts:` in your playbook to control which hosts a role runs on.
 |------|-------------|
 | [`admin_user`](roles/admin_user/) | Create and configure a single bootstrap/recovery admin user |
 | [`create_admin_users`](roles/create_admin_users/) | Create named admin users with SSH keys fetched from a git provider |
-| [`docker_host`](roles/docker_host/) | Install and configure Docker with security best practices and Swarm support |
+| [`docker_host`](roles/docker_host/) | Install and configure Docker with security best practices and Swarm support; optional restart of containers left with a stale `docker.sock` mount after a daemon restart |
 | [`dotfiles`](roles/dotfiles/) | Install and configure dotfiles using GNU Stow |
 | [`glusterfs`](roles/glusterfs/) | Install and configure GlusterFS distributed storage |
 | [`keepalived`](roles/keepalived/) | Keepalived high availability and virtual IP management |

@@ -55,6 +55,15 @@ docker_host_prune_volumes: false
 docker_host_prune_networks: false
 docker_host_prune_build_cache: false
 
+# Restart containers holding a stale bind mount of docker.sock after the Docker daemon
+# restarts (package upgrade of docker-ce/containerd.io, systemctl restart, crash).
+# Opt-in: installs a script and a systemd unit (docker-socket-refresh.service, PartOf
+# docker.service). The restart only touches containers started before the socket.
+docker_host_socket_refresh_enabled: false
+docker_host_socket_refresh_script: /usr/local/sbin/docker-refresh-socket-consumers
+# Container names never restarted by the refresh (list of names or regex alternatives).
+docker_host_socket_refresh_exclude: []
+
 # Systemd service configuration
 docker_host_systemd_override: true
 docker_host_systemd_options:

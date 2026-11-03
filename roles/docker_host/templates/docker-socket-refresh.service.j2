@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Restart containers holding a stale bind mount of docker.sock after docker.service
+# (re)starts, see {{ docker_host_socket_refresh_script }}.
+#
+# PartOf= propagates every stop/restart of docker.service to this unit, so a restart
+# of the daemon (package upgrade, systemctl restart, crash) runs the script again once
+# docker.service is back; WantedBy= covers boot.
+[Unit]
+Description=Restart containers holding a stale docker.sock bind mount
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=300
+ExecStart={{ docker_host_socket_refresh_script }}
+
+[Install]
+WantedBy=docker.service

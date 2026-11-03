@@ -13,6 +13,11 @@
 - name: Import Docker user management tasks
   ansible.builtin.include_tasks: users.yaml
 
+# Installed before the daemon restart below so that restart is covered too.
+- name: Import docker.sock refresh tasks
+  ansible.builtin.include_tasks: socket_refresh.yaml
+  when: docker_host_socket_refresh_enabled | bool
+
 # Phase 2: Single Docker daemon restart and stabilization
 - name: Restart Docker daemon once after all configuration
   ansible.builtin.systemd:

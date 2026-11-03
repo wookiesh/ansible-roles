@@ -34,6 +34,28 @@
 - `docker_host_services_root`: Root directory for services (default: "/opt/docker")
 - `docker_host_services_group`: Group for service directories (default: "docker")
 - `docker_host_auto_start_containers`: Auto-start containers (default: false)
+- `docker_host_socket_refresh_enabled`: Restart containers holding a stale `docker.sock` bind mount after the Docker daemon restarts (default: false, see below)
+- `docker_host_socket_refresh_script`: Where the refresh script is installed (default: "/usr/local/sbin/docker-refresh-socket-consumers")
+- `docker_host_socket_refresh_exclude`: Container names never restarted by the refresh, as a list of names or regex alternatives (default: [])
+
+#### Stale `docker.sock` refresh
+
+A package upgrade of `docker-ce` / `containerd.io` (or any restart of `docker.socket`) recreates `/var/run/docker.sock`. With `live-restore` the containers keep running, but those that bind-mount the socket **file** keep a dead mount of the old one: Komodo periphery, Traefik, Beszel and friends then log `Cannot connect to the Docker daemon at unix:///var/run/docker.sock` until restarted (seen on `mail`, 2026-10-30, after a manual `apt upgrade`).
+
+With `docker_host_socket_refresh_enabled: true` the role installs:
+- `docker-refresh-socket-consumers`: restarts every running container that bind-mounts `/var/run/docker.sock` or `/run/docker.sock` and was started **before** the socket was created. Containers started after it are left alone.
+- `docker-socket-refresh.service`: a oneshot unit, `PartOf=docker.service`, so every (re)start of the daemon runs the script once Docker is back, whether it comes from `apt`, `systemctl restart docker`, a crash or Ansible itself. It is only enabled, never started by the role, so applying the role does not restart containers by itself.
+
+Check what it would do without touching anything:
+
+```bash
+DRY_RUN=1 /usr/local/sbin/docker-refresh-socket-consumers
+```
+
+Notes:
+- It is not a hook on `apt`: it reacts to the daemon restarting, which is what recreates the socket.
+- Disabling the flag later does not remove the unit; `systemctl disable --now docker-socket-refresh.service` and delete the two files to uninstall.
+- A `docker-socket-proxy` does not replace this: the proxy container bind-mounts the socket file too.
 
 
 

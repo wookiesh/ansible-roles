@@ -1,0 +1,60 @@
+#!/bin/bash
+# {{ ansible_managed }}
+#
+# Restart running containers whose bind mount of the Docker socket FILE predates the
+# socket itself. A package upgrade of docker-ce / containerd.io (or any restart of
+# docker.socket) recreates /var/run/docker.sock; with live-restore the containers keep
+# running but keep a dead mount of the old file, and anything that talks to Docker
+# through it (Komodo periphery, Traefik, Beszel, ...) fails with "Cannot connect to the
+# Docker daemon at unix:///var/run/docker.sock" until it is restarted.
+#
+# Run by docker-socket-refresh.service every time docker.service (re)starts.
+#
+# Test hooks:
+#   DRY_RUN=1              only report what would be restarted
+#   DOCKER_SOCK_MTIME=<s>  use this epoch instead of the real socket mtime
+set -u
+
+SOCKET="/var/run/docker.sock"
+DRY_RUN="${DRY_RUN:-0}"
+EXCLUDE_RE='{{ docker_host_socket_refresh_exclude | join("|") }}'
+
+# docker.service is up when this runs (Type=notify), but give the API a moment anyway.
+for _ in $(seq 1 30); do
+  docker info >/dev/null 2>&1 && break
+  sleep 2
+done
+if ! docker info >/dev/null 2>&1; then
+  echo "docker API not reachable, nothing done" >&2
+  exit 1
+fi
+
+sock_ts="${DOCKER_SOCK_MTIME:-$(stat -c %Y "$SOCKET")}"
+status=0
+
+for id in $(docker ps --quiet --no-trunc); do
+  # Only containers that bind-mount the socket file are affected.
+  docker inspect --format '{% raw %}{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}{% endraw %}' "$id" \
+    | grep -qx -E '/var/run/docker.sock|/run/docker.sock' || continue
+
+  name=$(docker inspect --format '{% raw %}{{.Name}}{% endraw %}' "$id")
+  name="${name#/}"
+  started=$(date -d "$(docker inspect --format '{% raw %}{{.State.StartedAt}}{% endraw %}' "$id")" +%s)
+
+  # Started after the socket was created: its mount is fine.
+  [ "$started" -lt "$sock_ts" ] || continue
+
+  if [ -n "$EXCLUDE_RE" ] && printf '%s\n' "$name" | grep -q -E "^($EXCLUDE_RE)$"; then
+    echo "stale docker.sock mount, excluded: $name"
+    continue
+  fi
+
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "stale docker.sock mount, would restart: $name (started $started, socket $sock_ts)"
+  else
+    echo "stale docker.sock mount, restarting: $name (started $started, socket $sock_ts)"
+    docker restart "$id" >/dev/null || status=1
+  fi
+done
+
+exit "$status"
