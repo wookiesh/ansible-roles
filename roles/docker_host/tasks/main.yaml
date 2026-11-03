@@ -1,4 +1,26 @@
 ---
+# Preflight: dockerd refuses to start with live-restore when swarm state exists on disk
+# (even a dead leftover one), so fail now rather than after the daemon restart.
+- name: Read the current Swarm state of the Docker daemon
+  ansible.builtin.command: docker info --format '{% raw %}{{.Swarm.LocalNodeState}}{% endraw %}'
+  register: docker_host_swarm_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+
+- name: Refuse live-restore on a host with Swarm state
+  ansible.builtin.assert:
+    that:
+      - docker_host_swarm_state.rc != 0 or (docker_host_swarm_state.stdout | trim) == 'inactive'
+    fail_msg: >-
+      live-restore is incompatible with Swarm (state: {{ docker_host_swarm_state.stdout | trim }}).
+      Run 'docker swarm leave --force' on the host to drop leftover state, or set
+      live-restore: false in docker_host_daemon_config.
+  when:
+    - docker_host_daemon_config['live-restore'] | default(false) | bool
+    - not (docker_host_swarm_enabled | bool)
+
 # Phase 1: Docker installation and basic configuration
 - name: Import Docker installation tasks
   ansible.builtin.include_tasks: install.yaml
