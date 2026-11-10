@@ -41,12 +41,18 @@
   when: docker_host_socket_refresh_enabled | bool
 
 # Phase 2: Single Docker daemon restart and stabilization
+# Only when something that needs a restart actually changed: with live-restore
+# disabled (swarm hosts) a restart stops every container on the node.
 - name: Restart Docker daemon once after all configuration
   ansible.builtin.systemd:
     name: docker
     state: restarted
   become: true
   register: docker_host_daemon_restart_result
+  when: >-
+    (docker_host_daemon_json_result | default({})) is changed
+    or (docker_host_systemd_override_result | default({})) is changed
+    or (docker_host_script_install | default({})) is changed
 
 - name: Wait for Docker daemon to be fully ready
   ansible.builtin.systemd:

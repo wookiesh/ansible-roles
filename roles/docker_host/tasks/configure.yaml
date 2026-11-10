@@ -13,7 +13,7 @@
     mode: "0644"
     backup: true
   become: true
-  register: docker_host_daemon_config_result
+  register: docker_host_daemon_json_result
   when: docker_host_daemon_config is defined or docker_host_daemon_json is defined
 
 - name: Create Docker systemd override directory
@@ -34,4 +34,4 @@
   when: docker_host_systemd_override
   notify:
     - Reload systemd daemon
-  register: docker_host_daemon_config_result
+  register: docker_host_systemd_override_result
