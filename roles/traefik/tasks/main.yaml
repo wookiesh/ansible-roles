@@ -5,7 +5,7 @@
     state: directory
     mode: "0755"
     owner: root
-    group: root
+    group: "{{ traefik_docker_services_group }}"
   become: true
   when: traefik_access_log_path | default('') | length > 0
 
