@@ -42,9 +42,11 @@ services:
       - target: 8883
         published: 8883
         mode: host
+{% if traefik_static_config.entryPoints.metrics is defined %}
       - target: 8899
         published: 8899
         mode: host
+{% endif %}
 {% else %}
     ports:
       - "{{ traefik_static_config.entryPoints.web.address | regex_replace(':(\\d+)', '\\1') }}:80"

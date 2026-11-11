@@ -91,18 +91,23 @@
     - traefik_deployment_mode == "swarm"
     - inventory_hostname == docker_swarm_manager
 
+# Relies on the container healthcheck (`traefik healthcheck --ping`, internal :8080),
+# not on the optional metrics entrypoint, so it works without any published port.
 - name: Wait for Traefik to be ready (Swarm mode)
-  ansible.builtin.uri:
-    url: "http://localhost:{{ traefik_static_config.entryPoints.metrics.address | regex_replace(':(\\d+)', '\\1') }}/ping"
-    method: GET
-    status_code: [200, 404]
+  ansible.builtin.command:
+    cmd: >-
+      docker ps --filter name=traefik_proxy --filter health=healthy
+      --format {% raw %}'{{.Names}}'{% endraw %}
   register: traefik_health_swarm
   retries: 15
   delay: 10
-  until: traefik_health_swarm.status in [200, 404]
+  until: traefik_health_swarm.stdout | trim | length > 0
+  changed_when: false
+  check_mode: false
+  become: true
   when:
     - traefik_deployment_mode == "swarm"
-    - traefik_static_config.ping | default(false)
+    - traefik_healthcheck_enabled | bool
     - inventory_hostname == docker_swarm_manager
 
 - name: Verify Traefik containers are running (Compose mode)

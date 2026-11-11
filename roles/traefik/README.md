@@ -366,8 +366,8 @@ docker service logs myapp_myapp
 Traefik provides several monitoring endpoints:
 
 - **Dashboard**: https://{{ traefik_domain }} (when enabled)
-- **Metrics**: http://localhost:8899/metrics (Prometheus format)
-- **Ping**: http://localhost:8899/ping
+- **Metrics**: only if you define a `metrics` entrypoint (port 8899) and a `metrics.prometheus` block in `traefik_static_config`; the port is published on all interfaces in host mode, so restrict it before enabling
+- **Ping**: served on the internal `traefik` entrypoint (`:8080`, used by the container healthcheck), not published
 - **API**: https://{{ traefik_domain }}/api (when enabled)
 
 ### Swarm-Specific Monitoring
